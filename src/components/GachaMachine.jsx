@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { getDailyGacha, getFragments, saveDailyGacha } from '../utils/storage.js';
 
 function shuffle(items) {
@@ -8,6 +8,8 @@ function shuffle(items) {
 export default function GachaMachine() {
   const [cards, setCards] = useState([]);
   const [flippedIds, setFlippedIds] = useState([]);
+  const [speakingId, setSpeakingId] = useState('');
+  const speakingIdRef = useRef('');
   const library = useMemo(() => getFragments(), []);
   const canPlay = library.length >= 5;
   const completed = canPlay && cards.length === 5 && flippedIds.length === 5;
@@ -25,6 +27,63 @@ export default function GachaMachine() {
     saveDailyGacha(todaysCards);
     setCards(todaysCards);
   }, [canPlay, library]);
+
+  useEffect(() => {
+    return () => {
+      window.speechSynthesis?.cancel();
+    };
+  }, []);
+
+  const getEnglishVoice = () => {
+    const voices = window.speechSynthesis?.getVoices() || [];
+    const preferredVoice = voices.find((voice) => voice.name.includes('Google US English') || voice.name.includes('Samantha'));
+    return preferredVoice || voices.find((voice) => voice.lang === 'en-US') || null;
+  };
+
+  const speakEnglish = (text, id) => {
+    if (!window.speechSynthesis || !text) return;
+
+    if (speakingId === id) {
+      window.speechSynthesis.cancel();
+      speakingIdRef.current = '';
+      setSpeakingId('');
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+    const utterance = new window.SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    utterance.voice = getEnglishVoice();
+    utterance.onend = () => {
+      if (speakingIdRef.current === id) {
+        speakingIdRef.current = '';
+        setSpeakingId('');
+      }
+    };
+    utterance.onerror = () => {
+      if (speakingIdRef.current === id) {
+        speakingIdRef.current = '';
+        setSpeakingId('');
+      }
+    };
+    speakingIdRef.current = id;
+    setSpeakingId(id);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const renderSpeakButton = (text, id) => (
+    <button
+      type="button"
+      className="icon-button speak-button gacha-speak-button"
+      onClick={(event) => {
+        event.stopPropagation();
+        speakEnglish(text, id);
+      }}
+      aria-label="朗读英文原文"
+    >
+      {speakingId === id ? '⏸' : '🔊'}
+    </button>
+  );
 
   const toggleFlip = (id) => {
     setFlippedIds((current) => (current.includes(id) ? current : [...current, id]));
@@ -64,6 +123,8 @@ export default function GachaMachine() {
                   <span>{card.source}</span>
                 </span>
                 <span className="flip-face back">
+                  <span className="gacha-source">{card.source}</span>
+                  {renderSpeakButton(card.source, card.id)}
                   <strong>{card.translation}</strong>
                   <small>{card.scene}</small>
                 </span>

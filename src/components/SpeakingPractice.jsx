@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { askDeepSeek } from '../services/deepseek.js';
 
 const scenes = ['☕ 咖啡厅点单', '🏢 职场会议', '✈️ 旅行途中', '🛍️ 购物闲聊'];
@@ -27,9 +27,89 @@ export default function SpeakingPractice() {
   const [status, setStatus] = useState('idle');
   const [summary, setSummary] = useState('');
   const [error, setError] = useState('');
+  const [speakingId, setSpeakingId] = useState('');
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef(null);
+  const speakingIdRef = useRef('');
+
+  const SpeechRecognition = typeof window !== 'undefined' ? window.SpeechRecognition || window.webkitSpeechRecognition : null;
+  const supportsSpeechRecognition = Boolean(SpeechRecognition);
 
   const userTurns = messages.filter((message) => message.role === 'user').length;
   const canFinish = userTurns >= 5 && !summary;
+
+  useEffect(() => {
+    return () => {
+      window.speechSynthesis?.cancel();
+      recognitionRef.current?.stop();
+    };
+  }, []);
+
+  const getEnglishVoice = () => {
+    const voices = window.speechSynthesis?.getVoices() || [];
+    const preferredVoice = voices.find((voice) => voice.name.includes('Google US English') || voice.name.includes('Samantha'));
+    return preferredVoice || voices.find((voice) => voice.lang === 'en-US') || null;
+  };
+
+  const speakEnglish = (text, id) => {
+    if (!window.speechSynthesis || !text) return;
+
+    if (speakingId === id) {
+      window.speechSynthesis.cancel();
+      speakingIdRef.current = '';
+      setSpeakingId('');
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+    const utterance = new window.SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    utterance.voice = getEnglishVoice();
+    utterance.onend = () => {
+      if (speakingIdRef.current === id) {
+        speakingIdRef.current = '';
+        setSpeakingId('');
+      }
+    };
+    utterance.onerror = () => {
+      if (speakingIdRef.current === id) {
+        speakingIdRef.current = '';
+        setSpeakingId('');
+      }
+    };
+    speakingIdRef.current = id;
+    setSpeakingId(id);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const startVoiceInput = () => {
+    if (!supportsSpeechRecognition || isListening) return;
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognitionRef.current = recognition;
+    setIsListening(true);
+    setError('');
+
+    recognition.onresult = (event) => {
+      setInput(event.results[0][0].transcript);
+    };
+    recognition.onerror = () => {
+      setError('语音输入刚刚没听清，再试一次。');
+    };
+    recognition.onend = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+    };
+    try {
+      recognition.start();
+    } catch {
+      setIsListening(false);
+      recognitionRef.current = null;
+    }
+  };
 
   const startScene = async (selectedScene) => {
     setScene(selectedScene);
@@ -59,6 +139,8 @@ export default function SpeakingPractice() {
     const nextMessages = [...messages, userMessage];
     setMessages(nextMessages);
     setInput('');
+    setSpeakingId('');
+    window.speechSynthesis?.cancel();
     setStatus('loading');
     setError('');
 
@@ -106,6 +188,11 @@ ${transcript}`,
     setInput('');
     setSummary('');
     setError('');
+    setSpeakingId('');
+    speakingIdRef.current = '';
+    setIsListening(false);
+    window.speechSynthesis?.cancel();
+    recognitionRef.current?.stop();
     setStatus('idle');
   };
 
@@ -143,7 +230,14 @@ ${transcript}`,
           const { message: bubbleText, tip } = message.role === 'assistant' ? splitTip(message.content) : { message: message.content, tip: '' };
           return (
             <article key={message.id} className={`chat-row ${message.role}`}>
-              <div className="chat-bubble">{bubbleText}</div>
+              <div className="chat-bubble">
+                <span>{bubbleText}</span>
+                {message.role === 'assistant' && (
+                  <button type="button" className="icon-button speak-button bubble-speak-button" onClick={() => speakEnglish(bubbleText, message.id)} aria-label="朗读 AI 回复">
+                    {speakingId === message.id ? '⏸' : '🔊'}
+                  </button>
+                )}
+              </div>
               {tip && <p className="tip-text">{tip}</p>}
             </article>
           );
@@ -179,6 +273,16 @@ ${transcript}`,
               placeholder="用英文回一句..."
               disabled={status === 'loading'}
             />
+            <button
+              type="button"
+              className={`icon-button mic-button ${isListening ? 'listening' : ''}`}
+              onClick={startVoiceInput}
+              disabled={!supportsSpeechRecognition || status === 'loading'}
+              title={!supportsSpeechRecognition ? '当前浏览器不支持语音输入，建议使用 Chrome' : '语音输入'}
+              aria-label="语音输入"
+            >
+              🎤
+            </button>
             <button type="submit" disabled={!input.trim() || status === 'loading'}>
               发送
             </button>

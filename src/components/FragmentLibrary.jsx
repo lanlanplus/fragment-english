@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { askDeepSeek, parseJsonResponse } from '../services/deepseek.js';
 import { addFragment, getFragments } from '../utils/storage.js';
 
@@ -15,13 +15,64 @@ export default function FragmentLibrary() {
   const [latest, setLatest] = useState(null);
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState('');
+  const [speakingId, setSpeakingId] = useState('');
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef(null);
+  const speakingIdRef = useRef('');
+
+  const SpeechRecognition = typeof window !== 'undefined' ? window.SpeechRecognition || window.webkitSpeechRecognition : null;
+  const supportsSpeechRecognition = Boolean(SpeechRecognition);
 
   useEffect(() => {
     setFragments(getFragments());
   }, []);
 
-  const handleTranslate = async () => {
-    const source = input.trim();
+  useEffect(() => {
+    return () => {
+      window.speechSynthesis?.cancel();
+      recognitionRef.current?.stop();
+    };
+  }, []);
+
+  const getEnglishVoice = () => {
+    const voices = window.speechSynthesis?.getVoices() || [];
+    const preferredVoice = voices.find((voice) => voice.name.includes('Google US English') || voice.name.includes('Samantha'));
+    return preferredVoice || voices.find((voice) => voice.lang === 'en-US') || null;
+  };
+
+  const speakEnglish = (text, id) => {
+    if (!window.speechSynthesis || !text) return;
+
+    if (speakingId === id) {
+      window.speechSynthesis.cancel();
+      speakingIdRef.current = '';
+      setSpeakingId('');
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+    const utterance = new window.SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    utterance.voice = getEnglishVoice();
+    utterance.onend = () => {
+      if (speakingIdRef.current === id) {
+        speakingIdRef.current = '';
+        setSpeakingId('');
+      }
+    };
+    utterance.onerror = () => {
+      if (speakingIdRef.current === id) {
+        speakingIdRef.current = '';
+        setSpeakingId('');
+      }
+    };
+    speakingIdRef.current = id;
+    setSpeakingId(id);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const handleTranslate = async (sourceOverride) => {
+    const source = (typeof sourceOverride === 'string' ? sourceOverride : input).trim();
     if (!source || status === 'loading') return;
 
     setStatus('loading');
@@ -53,17 +104,66 @@ export default function FragmentLibrary() {
     }
   };
 
+  const startVoiceInput = () => {
+    if (!supportsSpeechRecognition || isListening) return;
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognitionRef.current = recognition;
+    setIsListening(true);
+    setError('');
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      setInput(transcript);
+      handleTranslate(transcript);
+    };
+    recognition.onerror = () => {
+      setError('语音输入刚刚没听清，再试一次。');
+    };
+    recognition.onend = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+    };
+    try {
+      recognition.start();
+    } catch {
+      setIsListening(false);
+      recognitionRef.current = null;
+    }
+  };
+
+  const renderSpeakButton = (text, id) => (
+    <button type="button" className="icon-button speak-button" onClick={() => speakEnglish(text, id)} aria-label="朗读英文原文">
+      {speakingId === id ? '⏸' : '🔊'}
+    </button>
+  );
+
   return (
     <div className="module">
       <div className="input-card">
         <label htmlFor="fragment-input">今天捡到什么英语碎片？</label>
-        <textarea
-          id="fragment-input"
-          value={input}
-          onChange={(event) => setInput(event.target.value)}
-          placeholder="比如：I’m down for whatever."
-          rows="4"
-        />
+        <div className="input-with-action">
+          <textarea
+            id="fragment-input"
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            placeholder="比如：I’m down for whatever."
+            rows="4"
+          />
+          <button
+            type="button"
+            className={`icon-button mic-button ${isListening ? 'listening' : ''}`}
+            onClick={startVoiceInput}
+            disabled={!supportsSpeechRecognition || status === 'loading'}
+            title={!supportsSpeechRecognition ? '当前浏览器不支持语音输入，建议使用 Chrome' : '语音输入'}
+            aria-label="语音输入"
+          >
+            🎤
+          </button>
+        </div>
         <button type="button" className="primary-button" onClick={handleTranslate} disabled={!input.trim() || status === 'loading'}>
           {status === 'loading' ? '翻译中...' : '翻译'}
         </button>
@@ -73,7 +173,10 @@ export default function FragmentLibrary() {
       {latest && (
         <article className="result-card">
           <p className="card-kicker">刚刚存入词库</p>
-          <h2>{latest.source}</h2>
+          <div className="source-row">
+            <h2>{latest.source}</h2>
+            {renderSpeakButton(latest.source, `latest-${latest.id}`)}
+          </div>
           <p className="translation">{latest.translation}</p>
           <p>{latest.scene}</p>
           {latest.better && <p className="better">更地道：{latest.better}</p>}
@@ -89,7 +192,10 @@ export default function FragmentLibrary() {
             {fragments.map((item) => (
               <article className="library-card" key={item.id}>
                 <div>
-                  <h3>{item.source}</h3>
+                  <div className="source-row">
+                    <h3>{item.source}</h3>
+                    {renderSpeakButton(item.source, `fragment-${item.id}`)}
+                  </div>
                   <p className="translation">{item.translation}</p>
                   <p>{item.scene}</p>
                 </div>
