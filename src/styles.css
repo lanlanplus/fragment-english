@@ -1,0 +1,503 @@
+:root {
+  font-family: 'Nunito', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: #2f2a28;
+  background: #fff8f5;
+  font-size: 16px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(255, 107, 107, 0.14), transparent 30%),
+    linear-gradient(180deg, #fff8f5 0%, #fff3ed 100%);
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  border: 0;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+}
+
+.app-frame {
+  width: 100%;
+  max-width: 480px;
+  min-height: 100vh;
+  padding: 22px 18px 92px;
+  position: relative;
+}
+
+.app-header {
+  margin-bottom: 18px;
+}
+
+.eyebrow,
+.card-kicker {
+  margin: 0 0 4px;
+  color: #8b8b8b;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+h1,
+h2 {
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+h1 {
+  margin-bottom: 0;
+}
+
+.screen-area {
+  min-height: calc(100vh - 170px);
+}
+
+.module {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.centered-module {
+  min-height: 55vh;
+  justify-content: center;
+  align-items: center;
+}
+
+.input-card,
+.result-card,
+.library-card,
+.gacha-hero,
+.scene-picker,
+.summary-card {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(255, 107, 107, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.input-card {
+  padding: 16px;
+}
+
+.input-card label {
+  display: block;
+  margin-bottom: 10px;
+  font-weight: 800;
+}
+
+textarea,
+input {
+  width: 100%;
+  border: 1px solid #f2d8cf;
+  border-radius: 14px;
+  background: #fffdfb;
+  color: #2f2a28;
+  outline: 0;
+}
+
+textarea {
+  min-height: 116px;
+  padding: 14px;
+  resize: vertical;
+}
+
+input {
+  height: 48px;
+  padding: 0 14px;
+}
+
+textarea:focus,
+input:focus {
+  border-color: #ff6b6b;
+  box-shadow: 0 0 0 4px rgba(255, 107, 107, 0.14);
+}
+
+.primary-button,
+.finish-button,
+.chat-input button {
+  min-height: 48px;
+  border-radius: 999px;
+  background: #ff6b6b;
+  color: white;
+  font-weight: 800;
+  box-shadow: 0 8px 18px rgba(255, 107, 107, 0.28);
+}
+
+.primary-button {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.ghost-button {
+  padding: 8px 12px;
+  border-radius: 999px;
+  color: #ff6b6b;
+  background: #fff0ec;
+  font-weight: 800;
+}
+
+.soft-error {
+  margin: 10px 0 0;
+  color: #c84f4f;
+  font-weight: 700;
+}
+
+.result-card,
+.library-card,
+.gacha-hero,
+.scene-picker,
+.summary-card {
+  padding: 16px;
+}
+
+.translation {
+  margin-bottom: 8px;
+  color: #ff6b6b;
+  font-weight: 800;
+}
+
+.better {
+  margin-bottom: 0;
+  padding-top: 8px;
+  color: #6d5f5a;
+}
+
+.list-section h2 {
+  margin-bottom: 12px;
+}
+
+.empty-state {
+  width: 100%;
+  padding: 22px 18px;
+  border: 1px dashed #f2b9ad;
+  border-radius: 16px;
+  color: #8b8b8b;
+  background: rgba(255, 255, 255, 0.56);
+  text-align: center;
+  line-height: 1.55;
+}
+
+.card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.library-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.library-card h3 {
+  margin-bottom: 8px;
+  font-size: 1rem;
+}
+
+.library-card p {
+  margin-bottom: 6px;
+  color: #5f5551;
+}
+
+.library-card time {
+  flex: 0 0 auto;
+  color: #8b8b8b;
+  font-size: 0.82rem;
+}
+
+.gacha-orb {
+  width: 92px;
+  height: 92px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  font-size: 3rem;
+}
+
+.gacha-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.gacha-hero h2 {
+  margin-bottom: 0;
+}
+
+.gacha-count {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #ff6b6b;
+  color: white;
+  font-weight: 900;
+}
+
+.gacha-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.flip-card {
+  min-height: 148px;
+  padding: 0;
+  background: transparent;
+  perspective: 900px;
+  width: 100%;
+}
+
+.flip-inner {
+  display: grid;
+  width: 100%;
+  min-height: 148px;
+  transform-style: preserve-3d;
+  transition: transform 0.55s ease;
+}
+
+.flip-card.flipped .flip-inner {
+  transform: rotateY(180deg);
+}
+
+.flip-face {
+  grid-area: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  min-height: 148px;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  backface-visibility: hidden;
+  text-align: center;
+  line-height: 1.35;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.flip-face.front {
+  background: #fff;
+  color: #2f2a28;
+  font-weight: 900;
+}
+
+.flip-face.back {
+  background: #ff6b6b;
+  color: white;
+  transform: rotateY(180deg);
+  font-size: 12px;
+}
+
+.flip-face small {
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.complete-banner {
+  position: relative;
+  padding: 16px;
+  border-radius: 16px;
+  background: #fff;
+  color: #ff6b6b;
+  font-weight: 900;
+  text-align: center;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.sparkle {
+  display: inline-block;
+  margin: 0 8px;
+  animation: pop 0.9s ease-in-out infinite alternate;
+}
+
+.sparkle.delay {
+  animation-delay: 0.25s;
+}
+
+.scene-picker p {
+  color: #8b8b8b;
+}
+
+.scene-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.scene-button {
+  min-height: 56px;
+  border-radius: 16px;
+  background: #fff8f5;
+  color: #2f2a28;
+  font-weight: 800;
+  box-shadow: inset 0 0 0 1px #f2d8cf;
+}
+
+.conversation-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #8b8b8b;
+  font-weight: 800;
+}
+
+.chat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 320px;
+  padding-bottom: 4px;
+}
+
+.chat-row {
+  display: flex;
+  flex-direction: column;
+  max-width: 86%;
+}
+
+.chat-row.user {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.chat-row.assistant {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
+.chat-bubble {
+  padding: 12px 14px;
+  border-radius: 16px;
+  line-height: 1.45;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.assistant .chat-bubble {
+  background: white;
+}
+
+.user .chat-bubble {
+  background: #ff6b6b;
+  color: white;
+}
+
+.tip-text {
+  max-width: 100%;
+  margin: 6px 4px 0;
+  color: #8b8b8b;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.typing-dot {
+  color: #8b8b8b;
+  font-weight: 800;
+}
+
+.finish-button {
+  width: 100%;
+}
+
+.chat-input {
+  display: grid;
+  grid-template-columns: 1fr 76px;
+  gap: 10px;
+  position: sticky;
+  bottom: 88px;
+  background: rgba(255, 248, 245, 0.86);
+  padding-top: 6px;
+}
+
+.chat-input button {
+  min-height: 48px;
+}
+
+.summary-card p {
+  color: #5f5551;
+  line-height: 1.6;
+}
+
+.tab-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: min(calc(100% - 32px), 448px);
+  padding: 8px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 10px 32px rgba(47, 42, 40, 0.12);
+  transform: translateX(-50%);
+  backdrop-filter: blur(16px);
+}
+
+.tab-button {
+  min-height: 48px;
+  border-radius: 18px;
+  background: transparent;
+  color: #8b8b8b;
+  font-weight: 900;
+}
+
+.tab-button span {
+  display: block;
+  line-height: 1;
+}
+
+.tab-button.active {
+  background: #ff6b6b;
+  color: white;
+}
+
+@keyframes pop {
+  from {
+    transform: translateY(0) scale(0.9);
+    opacity: 0.65;
+  }
+  to {
+    transform: translateY(-4px) scale(1.08);
+    opacity: 1;
+  }
+}
