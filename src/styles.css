@@ -100,7 +100,9 @@ h1 {
 .library-card,
 .gacha-hero,
 .scene-picker,
-.summary-card {
+.summary-card,
+.diary-writer,
+.diary-history {
   background: rgba(255, 255, 255, 0.88);
   border: 1px solid rgba(255, 107, 107, 0.1);
   border-radius: 16px;
@@ -231,7 +233,9 @@ input:focus {
 .library-card,
 .gacha-hero,
 .scene-picker,
-.summary-card {
+.summary-card,
+.diary-writer,
+.diary-history {
   padding: 16px;
 }
 
@@ -539,13 +543,172 @@ input:focus {
   line-height: 1.6;
 }
 
+.diary-module {
+  gap: 14px;
+}
+
+.diary-history-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0;
+  background: transparent;
+  color: #2f2a28;
+  font-weight: 900;
+}
+
+.diary-history-toggle span:last-child {
+  color: #ff6b6b;
+  font-size: 0.84rem;
+}
+
+.diary-history .card-list {
+  margin-top: 14px;
+}
+
+.diary-writer .card-kicker {
+  margin-bottom: 10px;
+}
+
+.diary-textarea-wrap {
+  position: relative;
+}
+
+.diary-textarea-wrap textarea {
+  min-height: 160px;
+  padding: 16px 54px 46px 16px;
+  border: 0;
+  border-radius: 16px;
+  background: white;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.diary-textarea-wrap .mic-button {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+}
+
+.diary-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.secondary-button {
+  min-height: 48px;
+  border-radius: 999px;
+  background: #fff0ec;
+  color: #ff6b6b;
+  font-weight: 800;
+  box-shadow: inset 0 0 0 1px #f2d8cf;
+}
+
+.diary-actions .primary-button,
+.diary-save-all {
+  margin-top: 0;
+}
+
+.diary-result {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 16px;
+  background: #fff0ee;
+}
+
+.diary-result h2 {
+  margin-bottom: 8px;
+  font-size: 1rem;
+}
+
+.diary-result p,
+.diary-entry-detail p {
+  margin-bottom: 0;
+  color: #5f5551;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.diary-tip-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.diary-tip-list li,
+.diary-tip {
+  color: #8b8b8b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.diary-tip-list li::before,
+.diary-tip::before {
+  content: '💡 ';
+}
+
+.diary-entry-card {
+  display: block;
+}
+
+.diary-entry-preview {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.diary-entry-preview strong,
+.diary-entry-preview small {
+  display: block;
+}
+
+.diary-entry-preview small {
+  margin-top: 6px;
+  color: #5f5551;
+  line-height: 1.35;
+}
+
+.draft-tag {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #eeeeee;
+  color: #8b8b8b;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.diary-entry-detail {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #f2d8cf;
+}
+
+.soft-success {
+  margin: 0;
+  color: #6d5f5a;
+  font-weight: 800;
+}
+
 .tab-bar {
   position: fixed;
   left: 50%;
   bottom: 18px;
   z-index: 10;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 8px;
   width: min(calc(100% - 32px), 448px);
   padding: 8px;
