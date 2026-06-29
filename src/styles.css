@@ -118,6 +118,7 @@ button:disabled {
 }
 
 .theme-toggle {
+  position: relative;
   width: 40px;
   height: 40px;
   display: grid;
@@ -130,17 +131,33 @@ button:disabled {
   font-size: 1.15rem;
 }
 
+.theme-sync-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-primary);
+}
+
 .theme-popover {
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
   z-index: 20;
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  gap: 12px;
   padding: 12px;
-  border-radius: 16px;
+  border-radius: 14px;
   background: white;
   box-shadow: 0 12px 32px rgba(47, 42, 40, 0.16);
+}
+
+.theme-swatch-row {
+  display: flex;
+  gap: 10px;
 }
 
 .theme-swatch {
@@ -178,6 +195,31 @@ button:disabled {
 
 .theme-swatch[data-theme-option="latte"] {
   background: #9E8060;
+}
+
+.theme-account {
+  display: grid;
+  gap: 7px;
+  min-width: 100%;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-card-border);
+}
+
+.theme-account p {
+  margin: 0;
+  color: var(--color-text-sub);
+  font-size: 11px;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.theme-account button {
+  justify-self: start;
+  padding: 0;
+  background: transparent;
+  color: var(--color-text-sub);
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 .eyebrow,

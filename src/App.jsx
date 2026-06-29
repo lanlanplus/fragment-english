@@ -23,13 +23,21 @@ const themes = [
   { id: 'latte', label: '奶茶棕' },
 ];
 
+function maskEmail(email) {
+  const [name, domain = ''] = email.split('@');
+  return `${name.slice(0, 4)}***@${domain}`;
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('fragments');
   const [theme, setTheme] = useState(() => getSettings().theme || 'purple');
   const [isThemePickerOpen, setIsThemePickerOpen] = useState(false);
   const [session, setSession] = useState(null);
   const [syncMessage, setSyncMessage] = useState('');
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const themePickerRef = useRef(null);
+  const userEmail = session?.user?.email || '';
+  const maskedEmail = userEmail ? maskEmail(userEmail) : '';
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -100,6 +108,18 @@ export default function App() {
     return <FragmentLibrary />;
   };
 
+  const signOut = async () => {
+    if (isSigningOut) return;
+
+    setIsSigningOut(true);
+    setIsThemePickerOpen(false);
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
+
   return (
     <main className="app-shell">
       <section className="app-frame">
@@ -118,30 +138,42 @@ export default function App() {
               onClick={() => setIsThemePickerOpen((isOpen) => !isOpen)}
             >
               🎨
+              {session?.user && <span className="theme-sync-dot" aria-hidden="true" />}
             </button>
 
             {isThemePickerOpen && (
               <div className="theme-popover" role="menu" aria-label="主题颜色">
-                {themes.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className={`theme-swatch ${theme === item.id ? 'selected' : ''}`}
-                    data-theme-option={item.id}
-                    aria-label={item.label}
-                    aria-pressed={theme === item.id}
-                    onClick={() => {
-                      setTheme(item.id);
-                      setIsThemePickerOpen(false);
-                    }}
-                  />
-                ))}
+                <div className="theme-swatch-row">
+                  {themes.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={`theme-swatch ${theme === item.id ? 'selected' : ''}`}
+                      data-theme-option={item.id}
+                      aria-label={item.label}
+                      aria-pressed={theme === item.id}
+                      onClick={() => {
+                        setTheme(item.id);
+                        setIsThemePickerOpen(false);
+                      }}
+                    />
+                  ))}
+                </div>
+
+                {session?.user && (
+                  <div className="theme-account">
+                    <p>👤 {maskedEmail}</p>
+                    <button type="button" onClick={signOut} disabled={isSigningOut}>
+                      退出登录
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
         </header>
 
-        <AuthPanel session={session} syncMessage={syncMessage} />
+        {!session?.user && <AuthPanel session={session} syncMessage={syncMessage} />}
 
         <div className="screen-area">{renderActiveTab()}</div>
 
