@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { askDeepSeek, parseJsonResponse } from '../services/deepseek.js';
+import { APP_STATE_SYNCED_EVENT, getDiaries, saveDiary } from '../utils/storage.js';
 
 const diarySystemPrompt = `You are an English writing assistant helping a Chinese learner improve their English diary entries.
 
@@ -35,27 +36,6 @@ function getTodayInfo() {
   };
 }
 
-function getDiaryKeys() {
-  return Object.keys(localStorage).filter((key) => key.startsWith('diary:'));
-}
-
-function loadDiaries() {
-  return getDiaryKeys()
-    .map((key) => {
-      try {
-        return JSON.parse(localStorage.getItem(key));
-      } catch {
-        return null;
-      }
-    })
-    .filter(Boolean)
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-}
-
-function saveDiary(entry) {
-  localStorage.setItem(`diary:${entry.id}`, JSON.stringify(entry));
-}
-
 function createDiaryEntry({ original, polished = null, tips = [], isDraft }) {
   const { date, dateDisplay } = getTodayInfo();
   const id = String(Date.now());
@@ -89,7 +69,14 @@ export default function DiaryModule() {
   const todayInfo = getTodayInfo();
 
   useEffect(() => {
-    setDiaries(loadDiaries());
+    setDiaries(getDiaries());
+
+    const refreshSyncedDiaries = () => {
+      setDiaries(getDiaries());
+    };
+
+    window.addEventListener(APP_STATE_SYNCED_EVENT, refreshSyncedDiaries);
+    return () => window.removeEventListener(APP_STATE_SYNCED_EVENT, refreshSyncedDiaries);
   }, []);
 
   useEffect(() => {
@@ -99,7 +86,7 @@ export default function DiaryModule() {
   }, []);
 
   const refreshDiaries = () => {
-    setDiaries(loadDiaries());
+    setDiaries(getDiaries());
   };
 
   const clearResult = () => {

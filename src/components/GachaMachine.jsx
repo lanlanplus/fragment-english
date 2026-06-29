@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { getDailyGacha, getFragments, saveDailyGacha } from '../utils/storage.js';
+import { APP_STATE_SYNCED_EVENT, getDailyGacha, getFragments, saveDailyGacha } from '../utils/storage.js';
 
 function shuffle(items) {
   return [...items].sort(() => Math.random() - 0.5);
@@ -9,8 +9,9 @@ export default function GachaMachine() {
   const [cards, setCards] = useState([]);
   const [flippedIds, setFlippedIds] = useState([]);
   const [speakingId, setSpeakingId] = useState('');
+  const [syncVersion, setSyncVersion] = useState(0);
   const speakingIdRef = useRef('');
-  const library = useMemo(() => getFragments(), []);
+  const library = useMemo(() => getFragments(), [syncVersion]);
   const canPlay = library.length >= 5;
   const completed = canPlay && cards.length === 5 && flippedIds.length === 5;
 
@@ -18,18 +19,26 @@ export default function GachaMachine() {
     if (!canPlay) return;
 
     const cached = getDailyGacha();
-    if (cached?.length === 5) {
-      setCards(cached);
+    if (cached?.cards?.length === 5) {
+      setCards(cached.cards);
+      setFlippedIds(cached.flippedIds || []);
       return;
     }
 
     const todaysCards = shuffle(library).slice(0, 5);
-    saveDailyGacha(todaysCards);
+    saveDailyGacha(todaysCards, []);
     setCards(todaysCards);
+    setFlippedIds([]);
   }, [canPlay, library]);
 
   useEffect(() => {
+    const refreshGacha = () => {
+      setSyncVersion((version) => version + 1);
+    };
+
+    window.addEventListener(APP_STATE_SYNCED_EVENT, refreshGacha);
     return () => {
+      window.removeEventListener(APP_STATE_SYNCED_EVENT, refreshGacha);
       window.speechSynthesis?.cancel();
     };
   }, []);
@@ -86,7 +95,11 @@ export default function GachaMachine() {
   );
 
   const toggleFlip = (id) => {
-    setFlippedIds((current) => (current.includes(id) ? current : [...current, id]));
+    setFlippedIds((current) => {
+      const nextFlippedIds = current.includes(id) ? current : [...current, id];
+      saveDailyGacha(cards, nextFlippedIds);
+      return nextFlippedIds;
+    });
   };
 
   if (!canPlay) {

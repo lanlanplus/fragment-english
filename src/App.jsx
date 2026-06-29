@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
+import AuthPanel from './components/AuthPanel.jsx';
 import FragmentLibrary from './components/FragmentLibrary.jsx';
 import GachaMachine from './components/GachaMachine.jsx';
 import SpeakingPractice from './components/SpeakingPractice.jsx';
 import DiaryModule from './components/DiaryModule.jsx';
+import { supabase } from './utils/supabase.js';
+import { APP_STATE_SYNCED_EVENT, getSettings, saveSettings, syncUserState } from './utils/storage.js';
 
 const tabs = [
   { id: 'fragments', label: '碎片', icon: '✦' },
@@ -22,14 +25,57 @@ const themes = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('fragments');
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'purple');
+  const [theme, setTheme] = useState(() => getSettings().theme || 'purple');
   const [isThemePickerOpen, setIsThemePickerOpen] = useState(false);
+  const [session, setSession] = useState(null);
+  const [syncMessage, setSyncMessage] = useState('');
   const themePickerRef = useRef(null);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
+    saveSettings({ theme });
   }, [theme]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function syncSession(nextSession) {
+      setSession(nextSession);
+      if (!nextSession?.user) {
+        setSyncMessage('');
+        return;
+      }
+
+      setSyncMessage('正在同步云端状态...');
+      const result = await syncUserState(nextSession.user);
+      if (!isMounted) return;
+      setSyncMessage(result.message);
+    }
+
+    supabase.auth.getSession().then(({ data }) => {
+      syncSession(data.session);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setTimeout(() => {
+        syncSession(nextSession);
+      }, 0);
+    });
+
+    return () => {
+      isMounted = false;
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    const refreshSettings = () => {
+      setTheme(getSettings().theme || 'purple');
+    };
+
+    window.addEventListener(APP_STATE_SYNCED_EVENT, refreshSettings);
+    return () => window.removeEventListener(APP_STATE_SYNCED_EVENT, refreshSettings);
+  }, []);
 
   useEffect(() => {
     const handlePointerDown = (event) => {
@@ -94,6 +140,8 @@ export default function App() {
             )}
           </div>
         </header>
+
+        <AuthPanel session={session} syncMessage={syncMessage} />
 
         <div className="screen-area">{renderActiveTab()}</div>
 

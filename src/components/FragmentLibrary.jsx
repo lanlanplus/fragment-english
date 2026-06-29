@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { askDeepSeek, parseJsonResponse } from '../services/deepseek.js';
-import { addFragment, getFragments } from '../utils/storage.js';
+import { APP_STATE_SYNCED_EVENT, addFragment, getFragments } from '../utils/storage.js';
 
 const translateSystemPrompt = `你是一个英语生活助理。用户会发给你一个英文句子或词，请返回以下三项，用 JSON 格式输出，不要有多余文字：
 {
@@ -25,6 +25,13 @@ export default function FragmentLibrary() {
 
   useEffect(() => {
     setFragments(getFragments());
+
+    const refreshFragments = () => {
+      setFragments(getFragments());
+    };
+
+    window.addEventListener(APP_STATE_SYNCED_EVENT, refreshFragments);
+    return () => window.removeEventListener(APP_STATE_SYNCED_EVENT, refreshFragments);
   }, []);
 
   useEffect(() => {

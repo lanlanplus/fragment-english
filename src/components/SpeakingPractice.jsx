@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { askDeepSeek } from '../services/deepseek.js';
+import { APP_STATE_SYNCED_EVENT, clearSpeakingState, getSpeakingState, saveSpeakingState } from '../utils/storage.js';
 
 const scenes = ['☕ 咖啡厅点单', '🏢 职场会议', '✈️ 旅行途中', '🛍️ 购物闲聊'];
 
@@ -21,11 +22,12 @@ function splitTip(text) {
 }
 
 export default function SpeakingPractice() {
-  const [scene, setScene] = useState('');
-  const [messages, setMessages] = useState([]);
+  const savedSpeakingState = getSpeakingState();
+  const [scene, setScene] = useState(savedSpeakingState.scene || '');
+  const [messages, setMessages] = useState(savedSpeakingState.messages || []);
   const [input, setInput] = useState('');
   const [status, setStatus] = useState('idle');
-  const [summary, setSummary] = useState('');
+  const [summary, setSummary] = useState(savedSpeakingState.summary || '');
   const [error, setError] = useState('');
   const [speakingId, setSpeakingId] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -39,11 +41,24 @@ export default function SpeakingPractice() {
   const canFinish = userTurns >= 5 && !summary;
 
   useEffect(() => {
+    const refreshSpeakingState = () => {
+      const nextState = getSpeakingState();
+      setScene(nextState.scene || '');
+      setMessages(nextState.messages || []);
+      setSummary(nextState.summary || '');
+    };
+
+    window.addEventListener(APP_STATE_SYNCED_EVENT, refreshSpeakingState);
     return () => {
+      window.removeEventListener(APP_STATE_SYNCED_EVENT, refreshSpeakingState);
       window.speechSynthesis?.cancel();
       recognitionRef.current?.stop();
     };
   }, []);
+
+  useEffect(() => {
+    saveSpeakingState({ scene, messages, summary });
+  }, [scene, messages, summary]);
 
   const getEnglishVoice = () => {
     const voices = window.speechSynthesis?.getVoices() || [];
@@ -194,6 +209,7 @@ ${transcript}`,
     window.speechSynthesis?.cancel();
     recognitionRef.current?.stop();
     setStatus('idle');
+    clearSpeakingState();
   };
 
   if (!scene) {
