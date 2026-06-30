@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { askDeepSeek, parseJsonResponse } from '../services/deepseek.js';
-import { APP_STATE_SYNCED_EVENT, addFragment, getFragments } from '../utils/storage.js';
+import { APP_STATE_SYNCED_EVENT, addFragment, addVocabEntry, deleteFragment, getFragments, updateFragment } from '../utils/storage.js';
 
 const translateSystemPrompt = `你是一个英语生活助理。用户会发给你一个英文句子或词，请返回以下三项，用 JSON 格式输出，不要有多余文字：
 {
@@ -14,6 +14,10 @@ export default function FragmentLibrary() {
   const [fragments, setFragments] = useState([]);
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState('');
+  const [editingId, setEditingId] = useState('');
+  const [editingSource, setEditingSource] = useState('');
+  const [deleteConfirmId, setDeleteConfirmId] = useState('');
+  const [notice, setNotice] = useState('');
   const [speakingId, setSpeakingId] = useState('');
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
@@ -77,26 +81,36 @@ export default function FragmentLibrary() {
     window.speechSynthesis.speak(utterance);
   };
 
+  const translateSource = async (source) => {
+    const text = await askDeepSeek([
+      { role: 'system', content: translateSystemPrompt },
+      { role: 'user', content: source },
+    ]);
+    const result = parseJsonResponse(text);
+    return {
+      source,
+      translation: result.translation || '',
+      scene: result.scene || '',
+      better: result.better || '',
+    };
+  };
+
   const handleTranslate = async (sourceOverride) => {
     const source = (typeof sourceOverride === 'string' ? sourceOverride : input).trim();
     if (!source || status === 'loading') return;
 
     setStatus('loading');
     setError('');
+    setNotice('');
 
     try {
-      const text = await askDeepSeek([
-        { role: 'system', content: translateSystemPrompt },
-        { role: 'user', content: source },
-      ]);
-      const result = parseJsonResponse(text);
+      const translated = await translateSource(source);
+      const now = new Date().toISOString();
       const fragment = {
         id: crypto.randomUUID(),
-        source,
-        translation: result.translation || '',
-        scene: result.scene || '',
-        better: result.better || '',
-        createdAt: new Date().toISOString(),
+        ...translated,
+        createdAt: now,
+        updatedAt: now,
       };
 
       const nextFragments = addFragment(fragment);
@@ -107,6 +121,63 @@ export default function FragmentLibrary() {
       setError('翻译刚刚走神了，再点一次试试。');
       setStatus('idle');
     }
+  };
+
+  const startEditing = (item) => {
+    setEditingId(item.id);
+    setEditingSource(item.source);
+    setDeleteConfirmId('');
+    setNotice('');
+    setError('');
+  };
+
+  const cancelEditing = () => {
+    setEditingId('');
+    setEditingSource('');
+  };
+
+  const saveEdit = async (item) => {
+    const source = editingSource.trim();
+    if (!source || status === 'loading') return;
+
+    setStatus('loading');
+    setError('');
+    setNotice('');
+
+    try {
+      const translated = await translateSource(source);
+      const nextFragments = updateFragment(item.id, {
+        ...translated,
+        createdAt: item.createdAt,
+        updatedAt: new Date().toISOString(),
+      });
+      setFragments(nextFragments);
+      cancelEditing();
+      setStatus('success');
+      setNotice('这条碎片已经重新整理好。');
+    } catch {
+      setError('这条刚刚没改成功，再试一次。');
+      setStatus('idle');
+    }
+  };
+
+  const confirmDelete = (id) => {
+    const nextFragments = deleteFragment(id);
+    setFragments(nextFragments);
+    setDeleteConfirmId('');
+    setNotice('已经把这条轻轻放走了。');
+  };
+
+  const collectBetter = (better) => {
+    const text = better.trim();
+    if (!text) return;
+
+    const nextFragments = addVocabEntry({
+      text,
+      sourceLabel: '来自碎片翻译-地道表达',
+    });
+    setFragments(nextFragments);
+    setNotice('地道表达已收进词库。');
   };
 
   const startVoiceInput = () => {
@@ -174,6 +245,7 @@ export default function FragmentLibrary() {
             <button type="button" className="primary-button" onClick={handleTranslate} disabled={!input.trim() || status === 'loading'}>
               {status === 'loading' ? '翻译中...' : '翻译'}
             </button>
+            {notice && <p className="soft-success">{notice}</p>}
             {error && <p className="soft-error">{error}</p>}
           </div>
         </div>
@@ -186,15 +258,64 @@ export default function FragmentLibrary() {
             <div className="card-list">
               {fragments.map((item) => (
                 <article className="library-card" key={item.id}>
-                  <div>
-                    <div className="source-row">
-                      <h3>{item.source}</h3>
-                      {renderSpeakButton(item.source, `fragment-${item.id}`)}
+                  <div className="library-card-main">
+                    <div className="library-card-toolbar">
+                      <button type="button" className="mini-icon-button" onClick={() => startEditing(item)} aria-label="编辑碎片">
+                        ✎
+                      </button>
+                      <button type="button" className="mini-icon-button danger" onClick={() => setDeleteConfirmId(item.id)} aria-label="删除碎片">
+                        ×
+                      </button>
                     </div>
-                    <p className="translation">{item.translation}</p>
-                    <p>{item.scene}</p>
+
+                    {editingId === item.id ? (
+                      <div className="fragment-edit-box">
+                        <textarea value={editingSource} onChange={(event) => setEditingSource(event.target.value)} rows="3" />
+                        <div className="inline-actions">
+                          <button type="button" className="secondary-button compact-button" onClick={cancelEditing}>
+                            先不改
+                          </button>
+                          <button type="button" className="primary-button compact-button" onClick={() => saveEdit(item)} disabled={!editingSource.trim() || status === 'loading'}>
+                            {status === 'loading' ? '重译中...' : '重新整理'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="source-row">
+                          <h3>{item.source}</h3>
+                          {renderSpeakButton(item.source, `fragment-${item.id}`)}
+                        </div>
+                        <p className="translation">{item.translation}</p>
+                        <p>{item.scene}</p>
+                        {item.better && (
+                          <div className="better-row">
+                            <p className="better">更地道：{item.better}</p>
+                            <button type="button" className="collect-chip" onClick={() => collectBetter(item.better)}>
+                              收录
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {deleteConfirmId === item.id && (
+                      <div className="soft-confirm">
+                        <span>这条不留啦？</span>
+                        <button type="button" onClick={() => confirmDelete(item.id)}>
+                          删除
+                        </button>
+                        <button type="button" onClick={() => setDeleteConfirmId('')}>
+                          留着
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="card-meta">
+                      <time>{new Date(item.createdAt).toLocaleDateString('zh-CN')}</time>
+                      {item.updatedAt && item.updatedAt !== item.createdAt && <span>改过</span>}
+                    </div>
                   </div>
-                  <time>{new Date(item.createdAt).toLocaleDateString('zh-CN')}</time>
                 </article>
               ))}
             </div>

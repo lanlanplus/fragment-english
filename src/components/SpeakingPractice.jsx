@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { askDeepSeek } from '../services/deepseek.js';
-import { APP_STATE_SYNCED_EVENT, clearSpeakingState, getSpeakingState, saveSpeakingState } from '../utils/storage.js';
+import { APP_STATE_SYNCED_EVENT, addVocabEntry, clearSpeakingState, getSpeakingState, saveSpeakingState } from '../utils/storage.js';
 
 const scenes = ['☕ 咖啡厅点单', '🏢 职场会议', '✈️ 旅行途中', '🛍️ 购物闲聊'];
 
@@ -29,6 +29,8 @@ export default function SpeakingPractice() {
   const [status, setStatus] = useState('idle');
   const [summary, setSummary] = useState(savedSpeakingState.summary || '');
   const [error, setError] = useState('');
+  const [collectDraft, setCollectDraft] = useState(null);
+  const [savedMessage, setSavedMessage] = useState('');
   const [speakingId, setSpeakingId] = useState('');
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
@@ -203,6 +205,8 @@ ${transcript}`,
     setInput('');
     setSummary('');
     setError('');
+    setCollectDraft(null);
+    setSavedMessage('');
     setSpeakingId('');
     speakingIdRef.current = '';
     setIsListening(false);
@@ -210,6 +214,44 @@ ${transcript}`,
     recognitionRef.current?.stop();
     setStatus('idle');
     clearSpeakingState();
+  };
+
+  const getSelectedText = (container) => {
+    const selection = window.getSelection?.();
+    const selectedText = selection?.toString().trim();
+    if (!selectedText || !selection.rangeCount) return '';
+
+    const range = selection.getRangeAt(0);
+    return container.contains(range.commonAncestorContainer) ? selectedText : '';
+  };
+
+  const openCollector = (text, sourceLabel) => {
+    const cleanText = text.trim();
+    if (!cleanText) return;
+    setCollectDraft({ text: cleanText, sourceLabel });
+    setSavedMessage('');
+  };
+
+  const handleCollectableMouseUp = (event, fallbackText, sourceLabel) => {
+    const container = event.currentTarget;
+    window.setTimeout(() => {
+      const selectedText = getSelectedText(container);
+      if (selectedText) openCollector(selectedText, sourceLabel);
+    }, 0);
+  };
+
+  const handleCollectableClick = (event, fallbackText, sourceLabel) => {
+    if (event.target.closest?.('button')) return;
+    const selectedText = getSelectedText(event.currentTarget);
+    if (!selectedText) openCollector(fallbackText, sourceLabel);
+  };
+
+  const saveCollectDraft = () => {
+    if (!collectDraft?.text) return;
+    addVocabEntry(collectDraft);
+    setCollectDraft(null);
+    window.getSelection?.().removeAllRanges();
+    setSavedMessage('收进词库啦。');
   };
 
   if (!scene) {
@@ -247,14 +289,27 @@ ${transcript}`,
           return (
             <article key={message.id} className={`chat-row ${message.role}`}>
               <div className="chat-bubble">
-                <span>{bubbleText}</span>
+                <span
+                  className={message.role === 'assistant' ? 'collectable-text' : ''}
+                  onMouseUp={message.role === 'assistant' ? (event) => handleCollectableMouseUp(event, bubbleText, '来自口语对话') : undefined}
+                  onClick={message.role === 'assistant' ? (event) => handleCollectableClick(event, bubbleText, '来自口语对话') : undefined}
+                >
+                  {bubbleText}
+                </span>
                 {message.role === 'assistant' && (
                   <button type="button" className="icon-button speak-button bubble-speak-button" onClick={() => speakEnglish(bubbleText, message.id)} aria-label="朗读 AI 回复">
                     {speakingId === message.id ? '⏸' : '🔊'}
                   </button>
                 )}
               </div>
-              {tip && <p className="tip-text">{tip}</p>}
+              {tip && (
+                <div className="tip-row">
+                  <p className="tip-text">{tip}</p>
+                  <button type="button" className="collect-chip" onClick={() => openCollector(tip, '来自口语对话-地道表达')}>
+                    收录
+                  </button>
+                </div>
+              )}
             </article>
           );
         })}
@@ -305,6 +360,21 @@ ${transcript}`,
           </form>
         </>
       )}
+      {collectDraft && (
+        <div className="collect-popover">
+          <p>{collectDraft.text}</p>
+          <small>{collectDraft.sourceLabel}</small>
+          <div className="inline-actions">
+            <button type="button" className="secondary-button compact-button" onClick={() => setCollectDraft(null)}>
+              先看看
+            </button>
+            <button type="button" className="primary-button compact-button" onClick={saveCollectDraft}>
+              收录
+            </button>
+          </div>
+        </div>
+      )}
+      {savedMessage && <p className="soft-success">{savedMessage}</p>}
       {error && <p className="soft-error">{error}</p>}
     </div>
   );

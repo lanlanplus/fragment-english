@@ -132,6 +132,34 @@ export function addFragment(fragment) {
   return nextFragments;
 }
 
+export function addVocabEntry({ text, sourceLabel }) {
+  const now = new Date().toISOString();
+  const entry = {
+    id: crypto.randomUUID(),
+    source: text,
+    translation: '已收录表达',
+    scene: sourceLabel,
+    better: '',
+    sourceLabel,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  return addFragment(entry);
+}
+
+export function updateFragment(id, updates) {
+  const nextFragments = getFragments().map((fragment) => (fragment.id === id ? { ...fragment, ...updates } : fragment));
+  saveFragments(nextFragments);
+  return nextFragments;
+}
+
+export function deleteFragment(id) {
+  const nextFragments = getFragments().filter((fragment) => fragment.id !== id);
+  saveFragments(nextFragments);
+  return nextFragments;
+}
+
 export function getTodayKey() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -160,6 +188,13 @@ export function getDiaries() {
 export function saveDiary(entry) {
   saveLocalJson(`${DIARY_KEY_PREFIX}${entry.id}`, entry);
   saveCloudSlice('diaries', getDiaries());
+}
+
+export function deleteDiary(id) {
+  localStorage.removeItem(`${DIARY_KEY_PREFIX}${id}`);
+  const nextDiaries = getDiaries();
+  saveCloudSlice('diaries', nextDiaries);
+  return nextDiaries;
 }
 
 export function getSettings() {

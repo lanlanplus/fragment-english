@@ -399,6 +399,14 @@ input:focus {
   margin-top: 12px;
 }
 
+.compact-button {
+  width: auto;
+  min-height: 36px;
+  margin-top: 0;
+  padding: 0 14px;
+  font-size: 0.82rem;
+}
+
 .ghost-button {
   padding: 8px 12px;
   border-radius: 999px;
@@ -488,6 +496,16 @@ input:focus {
   color: var(--color-text-main);
 }
 
+.better-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--color-card-border);
+}
+
 .list-section h2 {
   margin-bottom: 12px;
 }
@@ -510,9 +528,13 @@ input:focus {
 }
 
 .library-card {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
+  position: relative;
+  display: block;
+}
+
+.library-card-main {
+  min-width: 0;
+  padding-right: 76px;
 }
 
 .library-card h3 {
@@ -526,9 +548,136 @@ input:focus {
 }
 
 .library-card time {
-  flex: 0 0 auto;
   color: var(--color-text-sub);
   font-size: 0.82rem;
+}
+
+.library-card-toolbar {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 6px;
+}
+
+.mini-icon-button {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  box-shadow: inset 0 0 0 1px var(--color-card-border);
+  font-weight: 900;
+  line-height: 1;
+}
+
+.mini-icon-button.danger {
+  color: var(--color-text-sub);
+}
+
+.fragment-edit-box {
+  display: grid;
+  gap: 10px;
+  padding-right: 76px;
+}
+
+.fragment-edit-box textarea {
+  min-height: 92px;
+  border-radius: 12px;
+}
+
+.inline-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.soft-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 14px;
+  background: var(--color-primary-light);
+  color: var(--color-text-main);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.soft-confirm span {
+  flex: 1;
+}
+
+.soft-confirm button {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: white;
+  color: var(--color-primary);
+  font-weight: 900;
+  box-shadow: inset 0 0 0 1px var(--color-card-border);
+}
+
+.card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--color-text-sub);
+  font-size: 0.78rem;
+}
+
+.card-meta span {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-weight: 800;
+}
+
+.collect-chip {
+  flex: 0 0 auto;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: white;
+  font-size: 0.76rem;
+  font-weight: 900;
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--color-primary) 24%, transparent);
+}
+
+.collectable-text {
+  cursor: copy;
+}
+
+.collectable-text::selection {
+  background: color-mix(in srgb, var(--color-primary) 24%, white);
+}
+
+.collect-popover {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--color-card-border);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--color-primary) 16%, transparent);
+}
+
+.collect-popover p {
+  margin-bottom: 0;
+  color: var(--color-text-main);
+  line-height: 1.45;
+}
+
+.collect-popover small {
+  color: var(--color-text-sub);
+  font-weight: 800;
 }
 
 .gacha-orb {
@@ -739,11 +888,18 @@ input:focus {
 }
 
 .tip-text {
-  max-width: 100%;
-  margin: 6px 4px 0;
+  margin: 0;
   color: var(--color-text-sub);
   font-size: 0.82rem;
   line-height: 1.35;
+}
+
+.tip-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 100%;
+  margin: 6px 4px 0;
 }
 
 .typing-dot {
@@ -890,6 +1046,12 @@ input:focus {
 
 .diary-entry-card {
   display: block;
+  padding-right: 52px;
+}
+
+.diary-card-toolbar {
+  top: 12px;
+  right: 12px;
 }
 
 .diary-entry-preview {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { askDeepSeek, parseJsonResponse } from '../services/deepseek.js';
-import { APP_STATE_SYNCED_EVENT, getDiaries, saveDiary } from '../utils/storage.js';
+import { APP_STATE_SYNCED_EVENT, addVocabEntry, deleteDiary, getDiaries, saveDiary } from '../utils/storage.js';
 
 const diarySystemPrompt = `You are an English writing assistant helping a Chinese learner improve their English diary entries.
 
@@ -58,9 +58,11 @@ export default function DiaryModule() {
   const [diaries, setDiaries] = useState([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [expandedId, setExpandedId] = useState('');
+  const [deleteConfirmId, setDeleteConfirmId] = useState('');
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState('');
   const [savedMessage, setSavedMessage] = useState('');
+  const [collectDraft, setCollectDraft] = useState(null);
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
 
@@ -93,6 +95,44 @@ export default function DiaryModule() {
     setPolished('');
     setTips([]);
     setSavedMessage('');
+    setCollectDraft(null);
+  };
+
+  const getSelectedText = (container) => {
+    const selection = window.getSelection?.();
+    const selectedText = selection?.toString().trim();
+    if (!selectedText || !selection.rangeCount) return '';
+
+    const range = selection.getRangeAt(0);
+    return container.contains(range.commonAncestorContainer) ? selectedText : '';
+  };
+
+  const openCollector = (text, sourceLabel = '来自日记润色') => {
+    const cleanText = text.trim();
+    if (!cleanText) return;
+    setCollectDraft({ text: cleanText, sourceLabel });
+    setSavedMessage('');
+  };
+
+  const handleCollectableMouseUp = (event, text) => {
+    const container = event.currentTarget;
+    window.setTimeout(() => {
+      const selectedText = getSelectedText(container);
+      if (selectedText) openCollector(selectedText);
+    }, 0);
+  };
+
+  const handleCollectableClick = (event, text) => {
+    const selectedText = getSelectedText(event.currentTarget);
+    if (!selectedText) openCollector(text);
+  };
+
+  const saveCollectDraft = () => {
+    if (!collectDraft?.text) return;
+    addVocabEntry(collectDraft);
+    setCollectDraft(null);
+    window.getSelection?.().removeAllRanges();
+    setSavedMessage('这句已经放进词库。');
   };
 
   const startVoiceInput = () => {
@@ -170,6 +210,25 @@ export default function DiaryModule() {
     setSavedMessage('两个版本都保存好了。');
   };
 
+  const confirmDeleteDiary = (entry) => {
+    const nextDiaries = deleteDiary(entry.id);
+    setDiaries(nextDiaries);
+    setDeleteConfirmId('');
+
+    if (expandedId === entry.id) {
+      setExpandedId('');
+    }
+
+    const isShowingDeletedEntry = input === entry.original || polished === entry.polished;
+    if (isShowingDeletedEntry) {
+      setInput('');
+      setStatus('idle');
+      clearResult();
+    }
+
+    setSavedMessage('这篇日记已经收好不显示了。');
+  };
+
   return (
     <div className="module diary-module">
       <section className="diary-history">
@@ -187,6 +246,11 @@ export default function DiaryModule() {
                 const isExpanded = expandedId === entry.id;
                 return (
                   <article className="library-card diary-entry-card" key={entry.id}>
+                    <div className="library-card-toolbar diary-card-toolbar">
+                      <button type="button" className="mini-icon-button danger" onClick={() => setDeleteConfirmId(entry.id)} aria-label="删除日记">
+                        ×
+                      </button>
+                    </div>
                     <button type="button" className="diary-entry-preview" onClick={() => setExpandedId(isExpanded ? '' : entry.id)}>
                       <span>
                         <strong>{entry.dateDisplay}</strong>
@@ -204,7 +268,9 @@ export default function DiaryModule() {
                         {entry.polished && (
                           <div>
                             <p className="card-kicker">润色版</p>
-                            <p>{entry.polished}</p>
+                            <p className="collectable-text" onMouseUp={(event) => handleCollectableMouseUp(event, entry.polished)} onClick={(event) => handleCollectableClick(event, entry.polished)}>
+                              {entry.polished}
+                            </p>
                           </div>
                         )}
                         {entry.tips?.length > 0 && (
@@ -217,6 +283,18 @@ export default function DiaryModule() {
                             </ul>
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {deleteConfirmId === entry.id && (
+                      <div className="soft-confirm">
+                        <span>这篇不留啦？</span>
+                        <button type="button" onClick={() => confirmDeleteDiary(entry)}>
+                          删除
+                        </button>
+                        <button type="button" onClick={() => setDeleteConfirmId('')}>
+                          留着
+                        </button>
                       </div>
                     )}
                   </article>
@@ -256,7 +334,9 @@ export default function DiaryModule() {
         <section className="diary-result">
           <div>
             <h2>✨ 润色版本</h2>
-            <p>{polished}</p>
+            <p className="collectable-text" onMouseUp={(event) => handleCollectableMouseUp(event, polished)} onClick={(event) => handleCollectableClick(event, polished)}>
+              {polished}
+            </p>
           </div>
           <div>
             <h2>💡 表达提示</h2>
@@ -271,6 +351,21 @@ export default function DiaryModule() {
             )}
           </div>
         </section>
+      )}
+
+      {collectDraft && (
+        <div className="collect-popover">
+          <p>{collectDraft.text}</p>
+          <small>{collectDraft.sourceLabel}</small>
+          <div className="inline-actions">
+            <button type="button" className="secondary-button compact-button" onClick={() => setCollectDraft(null)}>
+              先看看
+            </button>
+            <button type="button" className="primary-button compact-button" onClick={saveCollectDraft}>
+              收录
+            </button>
+          </div>
+        </div>
       )}
 
       {polished ? (
