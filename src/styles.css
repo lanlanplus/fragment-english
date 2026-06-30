@@ -319,6 +319,13 @@ h1 {
   gap: 18px;
 }
 
+.fragment-layout,
+.fragment-left {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
 .centered-module {
   min-height: 55vh;
   justify-content: center;
@@ -965,6 +972,35 @@ input:focus {
 .tab-button.active {
   background: var(--color-primary);
   color: white;
+}
+
+@media (min-width: 1024px) {
+  .app-frame {
+    max-width: 1100px;
+    padding-bottom: 116px;
+  }
+
+  .screen-area {
+    min-height: calc(100vh - 188px);
+    padding-bottom: 18px;
+  }
+
+  .fragment-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 45%) minmax(0, 55%);
+    gap: 24px;
+    align-items: start;
+  }
+
+  .fragment-library-pane {
+    max-height: calc(100vh - 188px);
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+
+  .tab-bar {
+    width: min(calc(100% - 36px), 1064px);
+  }
 }
 
 @keyframes pop {
