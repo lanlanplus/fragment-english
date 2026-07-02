@@ -832,6 +832,34 @@ input:focus {
   font-weight: 800;
 }
 
+.today-task {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-self: flex-start;
+  margin: -2px 0 2px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary-light) 78%, transparent);
+  color: var(--color-primary);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.35;
+  box-shadow: inset 0 0 0 1px var(--color-card-border);
+}
+
+.task-side-button {
+  min-height: 24px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary-light) 40%, transparent);
+  color: var(--color-primary);
+  font-size: 0.76rem;
+  font-weight: 800;
+  box-shadow: inset 0 0 0 1px var(--color-primary-muted);
+}
+
 .chat-list {
   display: flex;
   flex-direction: column;
