@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { askDeepSeek } from '../services/deepseek.js';
-import { APP_STATE_SYNCED_EVENT, addVocabEntry, clearSpeakingState, getSpeakingState, saveSpeakingState } from '../utils/storage.js';
+import {
+  APP_STATE_SYNCED_EVENT,
+  addSpeakingHistory,
+  addVocabEntry,
+  clearSpeakingState,
+  getSpeakingHistory,
+  getSpeakingState,
+  saveSpeakingState,
+} from '../utils/storage.js';
 
 const sceneConfigs = [
   {
@@ -171,12 +179,46 @@ function splitTip(text) {
   };
 }
 
+function formatDateTime(value) {
+  if (!value) return '';
+  return new Date(value).toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function getWeekStart(date = new Date()) {
+  const start = new Date(date);
+  const day = start.getDay() || 7;
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - day + 1);
+  return start;
+}
+
+function getFirstAiMessage(record) {
+  const content = record.messages?.find((message) => message.role === 'ai')?.content || '';
+  return splitTip(content).message;
+}
+
+function getDurationText(record) {
+  const startedAt = new Date(record.createdAt).getTime();
+  const endedAt = new Date(record.endedAt).getTime();
+  if (!startedAt || !endedAt || endedAt <= startedAt) return '约1分钟';
+  return `约${Math.max(1, Math.ceil((endedAt - startedAt) / 60000))}分钟`;
+}
+
 export default function SpeakingPractice() {
   const savedSpeakingState = getSpeakingState();
   const [scene, setScene] = useState(savedSpeakingState.scene || '');
   const [currentTask, setCurrentTask] = useState(hydrateTask(savedSpeakingState.currentTask));
   const [isTaskReversed, setIsTaskReversed] = useState(savedSpeakingState.isTaskReversed || false);
   const [messages, setMessages] = useState(savedSpeakingState.messages || []);
+  const [conversationStartedAt, setConversationStartedAt] = useState(savedSpeakingState.createdAt || '');
+  const [history, setHistory] = useState(getSpeakingHistory());
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [expandedHistoryId, setExpandedHistoryId] = useState('');
   const [input, setInput] = useState('');
   const [status, setStatus] = useState('idle');
   const [summary, setSummary] = useState(savedSpeakingState.summary || '');
@@ -187,6 +229,8 @@ export default function SpeakingPractice() {
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
   const speakingIdRef = useRef('');
+  const conversationRef = useRef(null);
+  const savedConversationKeyRef = useRef('');
 
   const SpeechRecognition = typeof window !== 'undefined' ? window.SpeechRecognition || window.webkitSpeechRecognition : null;
   const supportsSpeechRecognition = Boolean(SpeechRecognition);
@@ -195,6 +239,38 @@ export default function SpeakingPractice() {
   const canFinish = userTurns >= 5 && !summary;
   const activeTask = getTaskView(currentTask, isTaskReversed);
   const canSwitchTaskSide = canReverseTask(currentTask);
+  const latestRecord = history[0];
+  const weekStart = getWeekStart();
+  const weeklyCount = history.filter((record) => new Date(record.endedAt || record.createdAt) >= weekStart).length;
+
+  const persistCurrentConversation = (shouldUpdateState = true) => {
+    const snapshot = conversationRef.current;
+    const userMessageCount = snapshot?.messages?.filter((message) => message.role === 'user').length || 0;
+    if (!snapshot?.scene || !userMessageCount) return null;
+
+    const endedAt = new Date().toISOString();
+    const saveKey = `${snapshot.startedAt}-${snapshot.messages.length}-${userMessageCount}`;
+    if (savedConversationKeyRef.current === saveKey) return null;
+    savedConversationKeyRef.current = saveKey;
+
+    const record = {
+      id: crypto.randomUUID(),
+      scene: snapshot.scene,
+      task: snapshot.task || '',
+      messages: snapshot.messages.map((message) => ({
+        role: message.role === 'assistant' ? 'ai' : 'user',
+        content: message.content,
+        timestamp: message.timestamp || endedAt,
+      })),
+      roundCount: userMessageCount,
+      createdAt: snapshot.startedAt || snapshot.messages[0]?.timestamp || endedAt,
+      endedAt,
+    };
+
+    const nextHistory = addSpeakingHistory(record);
+    if (shouldUpdateState) setHistory(nextHistory);
+    return record;
+  };
 
   useEffect(() => {
     const refreshSpeakingState = () => {
@@ -203,11 +279,14 @@ export default function SpeakingPractice() {
       setCurrentTask(hydrateTask(nextState.currentTask));
       setIsTaskReversed(nextState.isTaskReversed || false);
       setMessages(nextState.messages || []);
+      setConversationStartedAt(nextState.createdAt || '');
       setSummary(nextState.summary || '');
+      setHistory(getSpeakingHistory());
     };
 
     window.addEventListener(APP_STATE_SYNCED_EVENT, refreshSpeakingState);
     return () => {
+      persistCurrentConversation(false);
       window.removeEventListener(APP_STATE_SYNCED_EVENT, refreshSpeakingState);
       window.speechSynthesis?.cancel();
       recognitionRef.current?.stop();
@@ -215,8 +294,17 @@ export default function SpeakingPractice() {
   }, []);
 
   useEffect(() => {
-    saveSpeakingState({ scene, currentTask, isTaskReversed, messages, summary });
-  }, [scene, currentTask, isTaskReversed, messages, summary]);
+    saveSpeakingState({ scene, currentTask, isTaskReversed, messages, summary, createdAt: conversationStartedAt });
+  }, [scene, currentTask, isTaskReversed, messages, summary, conversationStartedAt]);
+
+  useEffect(() => {
+    conversationRef.current = {
+      scene,
+      task: activeTask?.prompt || '',
+      messages,
+      startedAt: conversationStartedAt,
+    };
+  }, [scene, activeTask, messages, conversationStartedAt]);
 
   const getEnglishVoice = () => {
     const voices = window.speechSynthesis?.getVoices() || [];
@@ -289,15 +377,18 @@ export default function SpeakingPractice() {
       { role: 'system', content: buildSystemPrompt(selectedScene, taskView) },
       { role: 'user', content: `Please start the conversation as the user's counterpart in this scene. User's optional task: ${taskView?.context || selectedScene}.` },
     ]);
-    setMessages([{ role: 'assistant', content: opening, id: crypto.randomUUID() }]);
+    setMessages([{ role: 'assistant', content: opening, id: crypto.randomUUID(), timestamp: new Date().toISOString() }]);
   };
 
   const startScene = async (selectedScene) => {
     const selectedTask = pickRandomTask(selectedScene);
     const selectedTaskView = getTaskView(selectedTask, false);
+    const startedAt = new Date().toISOString();
+    savedConversationKeyRef.current = '';
     setScene(selectedScene);
     setCurrentTask(selectedTask);
     setIsTaskReversed(false);
+    setConversationStartedAt(startedAt);
     setMessages([]);
     setSummary('');
     setInput('');
@@ -319,9 +410,13 @@ export default function SpeakingPractice() {
   const switchTaskSide = async () => {
     if (!scene || !canSwitchTaskSide || status === 'loading') return;
 
+    persistCurrentConversation();
     const nextIsReversed = !isTaskReversed;
     const nextTaskView = getTaskView(currentTask, nextIsReversed);
+    const startedAt = new Date().toISOString();
+    savedConversationKeyRef.current = '';
     setIsTaskReversed(nextIsReversed);
+    setConversationStartedAt(startedAt);
     setMessages([]);
     setSummary('');
     setInput('');
@@ -344,7 +439,7 @@ export default function SpeakingPractice() {
     const content = input.trim();
     if (!content || status === 'loading') return;
 
-    const userMessage = { role: 'user', content, id: crypto.randomUUID() };
+    const userMessage = { role: 'user', content, id: crypto.randomUUID(), timestamp: new Date().toISOString() };
     const nextMessages = [...messages, userMessage];
     setMessages(nextMessages);
     setInput('');
@@ -358,7 +453,7 @@ export default function SpeakingPractice() {
         { role: 'system', content: buildSystemPrompt(scene, activeTask) },
         ...nextMessages.map(({ role, content: messageContent }) => ({ role, content: messageContent })),
       ]);
-      setMessages([...nextMessages, { role: 'assistant', content: reply, id: crypto.randomUUID() }]);
+      setMessages([...nextMessages, { role: 'assistant', content: reply, id: crypto.randomUUID(), timestamp: new Date().toISOString() }]);
     } catch {
       setError('AI 刚才没接住这句话，再发一次也可以。');
     } finally {
@@ -392,9 +487,11 @@ ${transcript}`,
   };
 
   const reset = () => {
+    persistCurrentConversation();
     setScene('');
     setCurrentTask(null);
     setIsTaskReversed(false);
+    setConversationStartedAt('');
     setMessages([]);
     setInput('');
     setSummary('');
@@ -454,6 +551,74 @@ ${transcript}`,
         <section className="scene-picker">
           <h2>想去哪儿开口？</h2>
           <p>选一个小场景，像聊天一样练起来。</p>
+          <section className="speaking-overview" aria-label="口语对话统计">
+            <div className="speaking-stats-grid">
+              <div className="speaking-stat-card">
+                <span>累计对话次数</span>
+                <strong>{history.length}</strong>
+              </div>
+              <div className="speaking-stat-card">
+                <span>本周对话次数</span>
+                <strong>{weeklyCount}</strong>
+              </div>
+            </div>
+
+            {latestRecord ? (
+              <article className="speaking-recent-card">
+                <div className="history-card-top">
+                  <span className="scene-badge">{latestRecord.scene}</span>
+                  <time>{formatDateTime(latestRecord.endedAt)}</time>
+                  <button type="button" className="history-link" onClick={() => setIsHistoryOpen((isOpen) => !isOpen)}>
+                    {isHistoryOpen ? '收起' : '查看全部 →'}
+                  </button>
+                </div>
+                <p className="history-task">{latestRecord.task || '自由对话'}</p>
+                <p className="history-preview">{getFirstAiMessage(latestRecord)}</p>
+              </article>
+            ) : (
+              <p className="speaking-history-empty">还没有对话记录，选一个场景开始吧</p>
+            )}
+
+            {isHistoryOpen && history.length > 0 && (
+              <div className="speaking-history-list">
+                {history.map((record) => {
+                  const isExpanded = expandedHistoryId === record.id;
+                  return (
+                    <article key={record.id} className="speaking-history-card">
+                      <button
+                        type="button"
+                        className="history-card-button"
+                        onClick={() => setExpandedHistoryId(isExpanded ? '' : record.id)}
+                        aria-expanded={isExpanded}
+                      >
+                        <div className="history-card-top">
+                          <span className="scene-badge">{record.scene}</span>
+                          <time>{formatDateTime(record.endedAt)}</time>
+                        </div>
+                        <p className="history-task">{record.task || '自由对话'}</p>
+                        <p className="history-preview">{getFirstAiMessage(record)}</p>
+                        <div className="history-meta">
+                          <span>{record.roundCount} 轮对话</span>
+                          <span>{getDurationText(record)}</span>
+                        </div>
+                      </button>
+
+                      {isExpanded && (
+                        <div className="history-transcript">
+                          {record.messages.map((message, index) => (
+                            <article key={`${record.id}-${index}`} className={`chat-row readonly ${message.role === 'ai' ? 'assistant' : 'user'}`}>
+                              <div className="chat-bubble">{message.role === 'ai' ? splitTip(message.content).message : message.content}</div>
+                            </article>
+                          ))}
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+          <p className="scene-picker-prompt">再来一轮？</p>
           <div className="scene-grid">
             {sceneConfigs.map((item) => (
               <button key={item.label} type="button" className="scene-button" onClick={() => startScene(item.label)} disabled={status === 'loading'}>

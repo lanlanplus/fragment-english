@@ -5,10 +5,11 @@ export const GACHA_KEY_PREFIX = 'fragment-english-gacha-';
 export const DIARY_KEY_PREFIX = 'diary:';
 export const SETTINGS_KEY = 'fragment-english-settings';
 export const SPEAKING_KEY = 'fragment-english-speaking';
+export const SPEAKING_HISTORY_KEY = 'speaking_history';
 export const APP_STATE_SYNCED_EVENT = 'fragment-english-state-synced';
 
 const STATE_TABLE = 'user_states';
-const CLOUD_KEYS = ['fragments', 'gacha', 'diaries', 'settings', 'speaking'];
+const CLOUD_KEYS = ['fragments', 'gacha', 'diaries', 'settings', 'speaking', 'speaking_history'];
 
 function safeParse(value, fallback = null) {
   try {
@@ -82,6 +83,10 @@ function sortByNewest(items) {
   return [...items].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 }
 
+function sortSpeakingHistory(items) {
+  return [...items].sort((a, b) => new Date(b.endedAt || b.createdAt || 0) - new Date(a.endedAt || a.createdAt || 0));
+}
+
 function getLocalAppState() {
   return {
     fragments: getFragments(),
@@ -89,6 +94,7 @@ function getLocalAppState() {
     diaries: getDiaries(),
     settings: getSettings(),
     speaking: getSpeakingState(),
+    speaking_history: getSpeakingHistory(),
   };
 }
 
@@ -99,6 +105,7 @@ function mergeAppState(cloudState, localState) {
     diaries: sortByNewest(mergeById(localState.diaries, cloudState.diaries)),
     settings: { ...cloudState.settings, ...localState.settings },
     speaking: localState.speaking?.scene || localState.speaking?.messages?.length ? localState.speaking : cloudState.speaking,
+    speaking_history: sortSpeakingHistory(mergeById(localState.speaking_history, cloudState.speaking_history)),
   };
 }
 
@@ -227,6 +234,22 @@ export function clearSpeakingState() {
   saveCloudSlice('speaking', emptyState);
 }
 
+export function getSpeakingHistory() {
+  return sortSpeakingHistory(safeParse(localStorage.getItem(SPEAKING_HISTORY_KEY), []));
+}
+
+export function saveSpeakingHistory(history) {
+  const nextHistory = sortSpeakingHistory(history || []);
+  saveLocalJson(SPEAKING_HISTORY_KEY, nextHistory);
+  saveCloudSlice('speaking_history', nextHistory);
+}
+
+export function addSpeakingHistory(record) {
+  const nextHistory = sortSpeakingHistory([record, ...getSpeakingHistory()]);
+  saveSpeakingHistory(nextHistory);
+  return nextHistory;
+}
+
 export async function syncUserState(user) {
   if (!user) return { ok: false, message: '请先登录。' };
 
@@ -259,4 +282,5 @@ export function applyAppState(state) {
 
   saveSettings(state.settings || {});
   saveLocalJson(SPEAKING_KEY, state.speaking || { scene: '', messages: [], summary: '' });
+  saveLocalJson(SPEAKING_HISTORY_KEY, sortSpeakingHistory(state.speaking_history || []));
 }
