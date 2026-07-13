@@ -436,6 +436,179 @@ const textbookSceneConfigs = [
 
 const sceneConfigs = [...regularSceneConfigs, ...textbookSceneConfigs];
 
+const textbookTargetExpressions = {
+  1: [
+    'Could I speak to...? / Is ... available?',
+    "I'm afraid he's/she's not in right now",
+    'Can I take a message? / Would you like to leave a message?',
+    "I'll try his/her mobile",
+    "Do you know when he'll be back?",
+  ],
+  2: [
+    'This is ... calling from ...',
+    "I'm calling regarding / about...",
+    'Could you call me back on...?',
+    'Please get back to me by...',
+  ],
+  3: [
+    'Let me just take that down',
+    'Could you spell that for me, please?',
+    'Can I read that back to you to check?',
+    "I'll make sure he/she gets the message",
+  ],
+  4: [
+    'Is that spelled with a double...?',
+    "Let me confirm: that's...",
+    'Sorry, could you say that again?',
+    'Just to double-check...',
+  ],
+  5: [
+    'Could we arrange a time to...?',
+    'Does ... work for you?',
+    "I'm afraid something's come up",
+    'Could we reschedule to...?',
+    "I'll need to push our call back",
+  ],
+  6: [
+    "The purpose of today's meeting is...",
+    "We're here to discuss...",
+    "Let's go through the agenda",
+    'Shall we get started?',
+  ],
+  7: [
+    "I'd like to welcome everyone",
+    "Let's keep to the agenda",
+    "We're a bit short on time, so...",
+    'Can we move on to the next point?',
+  ],
+  8: [
+    'In my opinion... / From my point of view...',
+    "I'd like to make a point about...",
+    'What I think is...',
+    'I feel strongly that...',
+  ],
+  9: [
+    'I completely agree with that',
+    "That's a fair point",
+    "I couldn't agree more",
+    "Exactly, that's what I was thinking",
+  ],
+  10: [
+    'I see your point, but...',
+    "I'm not sure I agree with that",
+    "With respect, I'd like to challenge that",
+    "That's one way of looking at it, however...",
+  ],
+  11: [
+    'Sorry to interrupt, but...',
+    'Could I just come in here?',
+    'Just to clarify, are you saying...?',
+    'Could you go back to what you said about...?',
+  ],
+  12: [
+    'So, to sum up...',
+    "Let's recap what we've agreed",
+    'The action points are...',
+    "I'll follow up with an email",
+  ],
+  13: [
+    "We're here today to discuss...",
+    'Our position is...',
+    "What we're looking for is...",
+    "Let's start by outlining our priorities",
+  ],
+  14: [
+    "That's a bit higher than we expected",
+    'Could you come down on the price?',
+    'We might be able to meet you halfway',
+    'What if we increased the volume?',
+  ],
+  15: [
+    "If you could ..., we'd be willing to...",
+    'We can offer you ... in exchange for...',
+    "That's a concession we could consider",
+    "Let's see if we can find a trade-off",
+  ],
+  16: [
+    'We seem to have reached a deadlock',
+    'Perhaps we need a third party to mediate',
+    'Is there any room for compromise?',
+    "Let's take a step back and reconsider",
+  ],
+  17: [
+    "So, just to confirm what we've agreed...",
+    "Let's put this in writing",
+    "I'll draft the contract and send it over",
+    'Are we all in agreement on the terms?',
+  ],
+  18: [
+    'I work for... / I work in...',
+    "I'm responsible for...",
+    'My main role involves...',
+    "I've been in this field for...",
+  ],
+  19: [
+    'Could you tell me about your experience in...?',
+    'What would you say is your greatest strength?',
+    'Why are you interested in this position?',
+    "I believe I'd be a good fit because...",
+  ],
+  20: [
+    "I'm looking for a new challenge",
+    'I felt it was time to move on',
+    'My career path has taken me through...',
+    "In five years, I'd like to be...",
+  ],
+  21: [
+    'I think that raises an ethical issue',
+    'Where do you draw the line on...?',
+    'Companies have a responsibility to...',
+    "It's a grey area, but I'd say...",
+  ],
+  22: [
+    'I try to prioritize by...',
+    'I block out time for...',
+    'I tend to procrastinate on...',
+    'What works for me is...',
+  ],
+  23: [
+    "I've been feeling quite stressed lately",
+    'What helps me unwind is...',
+    'I try to downshift by...',
+    'It gets overwhelming when...',
+  ],
+  24: [
+    'I prefer a leader who...',
+    'Empowerment is important to me because...',
+    'A good manager should...',
+    "I don't respond well to micromanagement",
+  ],
+  25: [
+    'In my culture, we tend to...',
+    "There's quite a power distance in...",
+    'I noticed a different attitude toward...',
+    'It took some adjusting to...',
+  ],
+  26: [
+    'I think there might have been a misunderstanding',
+    'What I meant was...',
+    'Could you clarify what you meant by...?',
+    "Let's make sure we're on the same page",
+  ],
+  27: [
+    'Let me walk you through what we offer',
+    'One of the key benefits is...',
+    'This would really suit your needs because...',
+    'Would you like a demo?',
+  ],
+  28: [
+    'Is there any flexibility on the price?',
+    'We could offer a discount if...',
+    "That's within/above our budget",
+    'Can we agree on a middle ground?',
+  ],
+};
+
 function pickRandomTask(scene) {
   const config = sceneConfigs.find((item) => item.label === scene);
   if (!config?.tasks.length) return null;
@@ -458,14 +631,18 @@ function getTaskView(task, isReversed) {
     unit: task.unit,
     source: task.source,
     openingHint: task.openingHint,
+    targetExpressions: textbookTargetExpressions[task.number] || [],
   };
   if (!isReversed || !canReverseTask(task)) return { ...base, prompt: task.prompt, context: task.context };
   return { ...base, prompt: task.reversedPrompt, context: task.reversedContext };
 }
 
 function buildSystemPrompt(scene, task) {
+  const targetExpressionInstruction = task?.targetExpressions?.length
+    ? `Target expressions for this textbook task: ${task.targetExpressions.map((expression) => `"${expression}"`).join(', ')}. Use one of them naturally when you open if it fits the role. During the conversation, gently steer the user toward these expressions, and when giving the 💡 alternative expression, prefer these target expressions when they fit. Do not force every expression into one reply.`
+    : '';
   const taskInstruction = task?.context
-    ? `User's optional scenario task: ${task.context}. Treat this as the user's goal. ${task.unit ? `This textbook practice corresponds to ${task.unit}${task.source ? `: ${task.source}` : ''}. In your opening, naturally mention this unit connection once, then start the role-play.` : ''} ${task.openingHint ? `Opening guidance: ${task.openingHint}` : ''} Never speak as the user or complete the user's task for them. Play the natural counterpart or conversation partner in the scene, and open with a line that invites the user into this situation. If the user talks about something else, follow their lead naturally.`
+    ? `User's optional scenario task: ${task.context}. Treat this as the user's goal. ${task.unit ? `This textbook practice corresponds to ${task.unit}${task.source ? `: ${task.source}` : ''}. In your opening, naturally mention this unit connection once, then start the role-play.` : ''} ${task.openingHint ? `Opening guidance: ${task.openingHint}` : ''} ${targetExpressionInstruction} Never speak as the user or complete the user's task for them. Play the natural counterpart or conversation partner in the scene, and open with a line that invites the user into this situation. If the user talks about something else, follow their lead naturally.`
     : '';
 
   return `You are a conversation partner helping a Chinese user practice English speaking. 
