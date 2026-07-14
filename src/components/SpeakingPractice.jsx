@@ -9,6 +9,7 @@ import {
   getSpeakingState,
   saveSpeakingState,
 } from '../utils/storage.js';
+import WordRangeCollector from './WordRangeCollector.jsx';
 
 const regularSceneConfigs = [
   {
@@ -709,7 +710,6 @@ export default function SpeakingPractice() {
   const [status, setStatus] = useState('idle');
   const [summary, setSummary] = useState(savedSpeakingState.summary || '');
   const [error, setError] = useState('');
-  const [collectDraft, setCollectDraft] = useState(null);
   const [savedMessage, setSavedMessage] = useState('');
   const [speakingId, setSpeakingId] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -985,7 +985,6 @@ ${transcript}`,
     setInput('');
     setSummary('');
     setError('');
-    setCollectDraft(null);
     setSavedMessage('');
     setSpeakingId('');
     speakingIdRef.current = '';
@@ -996,41 +995,8 @@ ${transcript}`,
     clearSpeakingState();
   };
 
-  const getSelectedText = (container) => {
-    const selection = window.getSelection?.();
-    const selectedText = selection?.toString().trim();
-    if (!selectedText || !selection.rangeCount) return '';
-
-    const range = selection.getRangeAt(0);
-    return container.contains(range.commonAncestorContainer) ? selectedText : '';
-  };
-
-  const openCollector = (text, sourceLabel) => {
-    const cleanText = text.trim();
-    if (!cleanText) return;
-    setCollectDraft({ text: cleanText, sourceLabel });
-    setSavedMessage('');
-  };
-
-  const handleCollectableMouseUp = (event, fallbackText, sourceLabel) => {
-    const container = event.currentTarget;
-    window.setTimeout(() => {
-      const selectedText = getSelectedText(container);
-      if (selectedText) openCollector(selectedText, sourceLabel);
-    }, 0);
-  };
-
-  const handleCollectableClick = (event, fallbackText, sourceLabel) => {
-    if (event.target.closest?.('button')) return;
-    const selectedText = getSelectedText(event.currentTarget);
-    if (!selectedText) openCollector(fallbackText, sourceLabel);
-  };
-
-  const saveCollectDraft = () => {
-    if (!collectDraft?.text) return;
-    addVocabEntry(collectDraft);
-    setCollectDraft(null);
-    window.getSelection?.().removeAllRanges();
+  const collectPhrase = (entry) => {
+    addVocabEntry(entry);
     setSavedMessage('收进词库啦。');
   };
 
@@ -1198,13 +1164,9 @@ ${transcript}`,
           return (
             <article key={message.id} className={`chat-row ${message.role}`}>
               <div className="chat-bubble">
-                <span
-                  className={message.role === 'assistant' ? 'collectable-text' : ''}
-                  onMouseUp={message.role === 'assistant' ? (event) => handleCollectableMouseUp(event, bubbleText, '来自口语对话') : undefined}
-                  onClick={message.role === 'assistant' ? (event) => handleCollectableClick(event, bubbleText, '来自口语对话') : undefined}
-                >
-                  {bubbleText}
-                </span>
+                {message.role === 'assistant' ? (
+                  <WordRangeCollector text={bubbleText} sourceLabel="来自口语对话" onCollect={collectPhrase} ariaLabel="口语对话 AI 回复点词收录" />
+                ) : <span>{bubbleText}</span>}
                 {message.role === 'assistant' && (
                   <button type="button" className="icon-button speak-button bubble-speak-button" onClick={() => speakEnglish(bubbleText, message.id)} aria-label="朗读 AI 回复">
                     {speakingId === message.id ? '⏸' : '🔊'}
@@ -1213,10 +1175,7 @@ ${transcript}`,
               </div>
               {tip && (
                 <div className="tip-row">
-                  <p className="tip-text">{tip}</p>
-                  <button type="button" className="collect-chip" onClick={() => openCollector(tip, '来自口语对话-地道表达')}>
-                    收录
-                  </button>
+                  <WordRangeCollector text={tip} sourceLabel="来自口语对话-地道表达" onCollect={collectPhrase} className="tip-text" ariaLabel="口语对话提示点词收录" />
                 </div>
               )}
             </article>
@@ -1268,20 +1227,6 @@ ${transcript}`,
             </button>
           </form>
         </>
-      )}
-      {collectDraft && (
-        <div className="collect-popover">
-          <p>{collectDraft.text}</p>
-          <small>{collectDraft.sourceLabel}</small>
-          <div className="inline-actions">
-            <button type="button" className="secondary-button compact-button" onClick={() => setCollectDraft(null)}>
-              先看看
-            </button>
-            <button type="button" className="primary-button compact-button" onClick={saveCollectDraft}>
-              收录
-            </button>
-          </div>
-        </div>
       )}
       {savedMessage && <p className="soft-success">{savedMessage}</p>}
       {error && <p className="soft-error">{error}</p>}

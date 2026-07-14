@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { askDeepSeek, parseJsonResponse } from '../services/deepseek.js';
 import { APP_STATE_SYNCED_EVENT, addFragment, addVocabEntry, deleteFragment, getFragments, updateFragment } from '../utils/storage.js';
+import WordRangeCollector from './WordRangeCollector.jsx';
 
 const translateSystemPrompt = `你是一个英语生活助理。用户会发给你一个英文句子或词，请返回以下三项，用 JSON 格式输出，不要有多余文字：
 {
@@ -168,14 +169,8 @@ export default function FragmentLibrary() {
     setNotice('已经把这条轻轻放走了。');
   };
 
-  const collectBetter = (better) => {
-    const text = better.trim();
-    if (!text) return;
-
-    const nextFragments = addVocabEntry({
-      text,
-      sourceLabel: '来自碎片翻译-地道表达',
-    });
+  const collectBetter = (entry) => {
+    const nextFragments = addVocabEntry(entry);
     setFragments(nextFragments);
     setNotice('地道表达已收进词库。');
   };
@@ -250,9 +245,9 @@ export default function FragmentLibrary() {
           </div>
         </div>
 
-        <section className="list-section fragment-library-pane">
-          <h2>碎片词库</h2>
-          {fragments.length === 0 ? (
+      <section className="list-section fragment-library-pane">
+        <h2>碎片词库</h2>
+        {fragments.length === 0 ? (
             <div className="empty-state">还没有碎片～去看个vlog，把听不懂的发过来吧 ✨</div>
           ) : (
             <div className="card-list">
@@ -290,10 +285,8 @@ export default function FragmentLibrary() {
                         <p>{item.scene}</p>
                         {item.better && (
                           <div className="better-row">
-                            <p className="better">更地道：{item.better}</p>
-                            <button type="button" className="collect-chip" onClick={() => collectBetter(item.better)}>
-                              收录
-                            </button>
+                            <span className="better-label">更地道：</span>
+                            <WordRangeCollector text={item.better} sourceLabel="来自碎片翻译-地道表达" onCollect={collectBetter} className="better" ariaLabel="碎片翻译地道表达点词收录" />
                           </div>
                         )}
                       </>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { askDeepSeek, parseJsonResponse } from '../services/deepseek.js';
 import { APP_STATE_SYNCED_EVENT, addVocabEntry, deleteDiary, getDiaries, saveDiary } from '../utils/storage.js';
+import WordRangeCollector from './WordRangeCollector.jsx';
 
 const diarySystemPrompt = `You are an English writing assistant helping a Chinese learner improve their English diary entries.
 
@@ -62,7 +63,6 @@ export default function DiaryModule() {
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState('');
   const [savedMessage, setSavedMessage] = useState('');
-  const [collectDraft, setCollectDraft] = useState(null);
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
 
@@ -95,43 +95,10 @@ export default function DiaryModule() {
     setPolished('');
     setTips([]);
     setSavedMessage('');
-    setCollectDraft(null);
   };
 
-  const getSelectedText = (container) => {
-    const selection = window.getSelection?.();
-    const selectedText = selection?.toString().trim();
-    if (!selectedText || !selection.rangeCount) return '';
-
-    const range = selection.getRangeAt(0);
-    return container.contains(range.commonAncestorContainer) ? selectedText : '';
-  };
-
-  const openCollector = (text, sourceLabel = '来自日记润色') => {
-    const cleanText = text.trim();
-    if (!cleanText) return;
-    setCollectDraft({ text: cleanText, sourceLabel });
-    setSavedMessage('');
-  };
-
-  const handleCollectableMouseUp = (event, text) => {
-    const container = event.currentTarget;
-    window.setTimeout(() => {
-      const selectedText = getSelectedText(container);
-      if (selectedText) openCollector(selectedText);
-    }, 0);
-  };
-
-  const handleCollectableClick = (event, text) => {
-    const selectedText = getSelectedText(event.currentTarget);
-    if (!selectedText) openCollector(text);
-  };
-
-  const saveCollectDraft = () => {
-    if (!collectDraft?.text) return;
-    addVocabEntry(collectDraft);
-    setCollectDraft(null);
-    window.getSelection?.().removeAllRanges();
+  const collectPhrase = (entry) => {
+    addVocabEntry(entry);
     setSavedMessage('这句已经放进词库。');
   };
 
@@ -268,9 +235,7 @@ export default function DiaryModule() {
                         {entry.polished && (
                           <div>
                             <p className="card-kicker">润色版</p>
-                            <p className="collectable-text" onMouseUp={(event) => handleCollectableMouseUp(event, entry.polished)} onClick={(event) => handleCollectableClick(event, entry.polished)}>
-                              {entry.polished}
-                            </p>
+                            <WordRangeCollector text={entry.polished} sourceLabel="来自日记润色" onCollect={collectPhrase} ariaLabel="历史日记润色版点词收录" />
                           </div>
                         )}
                         {entry.tips?.length > 0 && (
@@ -334,9 +299,7 @@ export default function DiaryModule() {
         <section className="diary-result">
           <div>
             <h2>✨ 润色版本</h2>
-            <p className="collectable-text" onMouseUp={(event) => handleCollectableMouseUp(event, polished)} onClick={(event) => handleCollectableClick(event, polished)}>
-              {polished}
-            </p>
+            <WordRangeCollector text={polished} sourceLabel="来自日记润色" onCollect={collectPhrase} ariaLabel="日记润色版点词收录" />
           </div>
           <div>
             <h2>💡 表达提示</h2>
@@ -351,21 +314,6 @@ export default function DiaryModule() {
             )}
           </div>
         </section>
-      )}
-
-      {collectDraft && (
-        <div className="collect-popover">
-          <p>{collectDraft.text}</p>
-          <small>{collectDraft.sourceLabel}</small>
-          <div className="inline-actions">
-            <button type="button" className="secondary-button compact-button" onClick={() => setCollectDraft(null)}>
-              先看看
-            </button>
-            <button type="button" className="primary-button compact-button" onClick={saveCollectDraft}>
-              收录
-            </button>
-          </div>
-        </div>
       )}
 
       {polished ? (
