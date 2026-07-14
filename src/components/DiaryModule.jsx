@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { askDeepSeek, parseJsonResponse } from '../services/deepseek.js';
 import { APP_STATE_SYNCED_EVENT, addVocabEntry, deleteDiary, getDiaries, saveDiary } from '../utils/storage.js';
+import { enrichVocabEntry } from '../utils/vocabEnrichment.js';
 import WordRangeCollector from './WordRangeCollector.jsx';
 
 const diarySystemPrompt = `You are an English writing assistant helping a Chinese learner improve their English diary entries.
@@ -98,7 +99,8 @@ export default function DiaryModule() {
   };
 
   const collectPhrase = (entry) => {
-    addVocabEntry(entry);
+    const { entry: savedEntry } = addVocabEntry({ ...entry, isEnrichmentPending: true });
+    void enrichVocabEntry(savedEntry);
     setSavedMessage('这句已经放进词库。');
   };
 

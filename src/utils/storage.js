@@ -7,9 +7,11 @@ export const SETTINGS_KEY = 'fragment-english-settings';
 export const SPEAKING_KEY = 'fragment-english-speaking';
 export const SPEAKING_HISTORY_KEY = 'speaking_history';
 export const APP_STATE_SYNCED_EVENT = 'fragment-english-state-synced';
+export const FRAGMENTS_LOCAL_UPDATED_EVENT = 'fragment-english-fragments-local-updated';
 
 const STATE_TABLE = 'user_states';
 const CLOUD_KEYS = ['fragments', 'gacha', 'diaries', 'settings', 'speaking', 'speaking_history'];
+let fragmentsCloudSaveQueue = Promise.resolve();
 
 function safeParse(value, fallback = null) {
   try {
@@ -23,6 +25,10 @@ function emitStateSynced() {
   window.dispatchEvent(new Event(APP_STATE_SYNCED_EVENT));
 }
 
+function emitFragmentsLocalUpdated() {
+  window.dispatchEvent(new Event(FRAGMENTS_LOCAL_UPDATED_EVENT));
+}
+
 function saveLocalJson(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
 }
@@ -32,7 +38,7 @@ async function getCurrentUser() {
   return data.user;
 }
 
-async function saveCloudSlice(key, value) {
+async function performCloudSliceSave(key, value) {
   try {
     const user = await getCurrentUser();
     if (!user) return;
@@ -51,6 +57,12 @@ async function saveCloudSlice(key, value) {
   } catch (error) {
     console.warn(`Cloud sync skipped for ${key}:`, error);
   }
+}
+
+function saveCloudSlice(key, value) {
+  if (key !== 'fragments') return performCloudSliceSave(key, value);
+  fragmentsCloudSaveQueue = fragmentsCloudSaveQueue.then(() => performCloudSliceSave(key, value));
+  return fragmentsCloudSaveQueue;
 }
 
 function getLocalGachaMap() {
@@ -136,28 +148,31 @@ export function saveFragments(fragments) {
 export function addFragment(fragment) {
   const nextFragments = [fragment, ...getFragments()];
   saveFragments(nextFragments);
+  emitFragmentsLocalUpdated();
   return nextFragments;
 }
 
-export function addVocabEntry({ text, sourceLabel }) {
+export function addVocabEntry({ text, sourceLabel, isEnrichmentPending = false }) {
   const now = new Date().toISOString();
   const entry = {
     id: crypto.randomUUID(),
     source: text,
-    translation: '已收录表达',
-    scene: sourceLabel,
+    translation: isEnrichmentPending ? '解析生成中…' : '已收录表达',
+    scene: isEnrichmentPending ? '' : sourceLabel,
     better: '',
     sourceLabel,
     createdAt: now,
     updatedAt: now,
   };
 
-  return addFragment(entry);
+  const fragments = addFragment(entry);
+  return { entry, fragments };
 }
 
 export function updateFragment(id, updates) {
   const nextFragments = getFragments().map((fragment) => (fragment.id === id ? { ...fragment, ...updates } : fragment));
   saveFragments(nextFragments);
+  emitFragmentsLocalUpdated();
   return nextFragments;
 }
 

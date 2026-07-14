@@ -1,14 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { askDeepSeek, parseJsonResponse } from '../services/deepseek.js';
-import { APP_STATE_SYNCED_EVENT, addFragment, addVocabEntry, deleteFragment, getFragments, updateFragment } from '../utils/storage.js';
+import { translateSource } from '../utils/deepseekTranslate.js';
+import { APP_STATE_SYNCED_EVENT, FRAGMENTS_LOCAL_UPDATED_EVENT, addFragment, addVocabEntry, deleteFragment, getFragments, updateFragment } from '../utils/storage.js';
 import WordRangeCollector from './WordRangeCollector.jsx';
-
-const translateSystemPrompt = `你是一个英语生活助理。用户会发给你一个英文句子或词，请返回以下三项，用 JSON 格式输出，不要有多余文字：
-{
-  "translation": "中文翻译",
-  "scene": "一句话说明这个表达在什么场景用（口语化）",
-  "better": "更地道的替换表达，如果没有则返回空字符串"
-}`;
 
 export default function FragmentLibrary() {
   const [input, setInput] = useState('');
@@ -35,7 +28,11 @@ export default function FragmentLibrary() {
     };
 
     window.addEventListener(APP_STATE_SYNCED_EVENT, refreshFragments);
-    return () => window.removeEventListener(APP_STATE_SYNCED_EVENT, refreshFragments);
+    window.addEventListener(FRAGMENTS_LOCAL_UPDATED_EVENT, refreshFragments);
+    return () => {
+      window.removeEventListener(APP_STATE_SYNCED_EVENT, refreshFragments);
+      window.removeEventListener(FRAGMENTS_LOCAL_UPDATED_EVENT, refreshFragments);
+    };
   }, []);
 
   useEffect(() => {
@@ -80,20 +77,6 @@ export default function FragmentLibrary() {
     speakingIdRef.current = id;
     setSpeakingId(id);
     window.speechSynthesis.speak(utterance);
-  };
-
-  const translateSource = async (source) => {
-    const text = await askDeepSeek([
-      { role: 'system', content: translateSystemPrompt },
-      { role: 'user', content: source },
-    ]);
-    const result = parseJsonResponse(text);
-    return {
-      source,
-      translation: result.translation || '',
-      scene: result.scene || '',
-      better: result.better || '',
-    };
   };
 
   const handleTranslate = async (sourceOverride) => {
@@ -170,8 +153,8 @@ export default function FragmentLibrary() {
   };
 
   const collectBetter = (entry) => {
-    const nextFragments = addVocabEntry(entry);
-    setFragments(nextFragments);
+    const { fragments } = addVocabEntry(entry);
+    setFragments(fragments);
     setNotice('地道表达已收进词库。');
   };
 
@@ -281,8 +264,10 @@ export default function FragmentLibrary() {
                           <h3>{item.source}</h3>
                           {renderSpeakButton(item.source, `fragment-${item.id}`)}
                         </div>
-                        <p className="translation">{item.translation}</p>
-                        <p>{item.scene}</p>
+                        <div className="fragment-analysis">
+                          <p className={`translation${item.translation === '解析生成中…' ? ' loading' : ''}`}>{item.translation}</p>
+                          {item.scene && item.scene !== item.sourceLabel && <p>{item.scene}</p>}
+                        </div>
                         {item.better && (
                           <div className="better-row">
                             <span className="better-label">更地道：</span>
@@ -306,6 +291,7 @@ export default function FragmentLibrary() {
 
                     <div className="card-meta">
                       <time>{new Date(item.createdAt).toLocaleDateString('zh-CN')}</time>
+                      {item.sourceLabel && <span className="source-label">{item.sourceLabel}</span>}
                       {item.updatedAt && item.updatedAt !== item.createdAt && <span>改过</span>}
                     </div>
                   </div>

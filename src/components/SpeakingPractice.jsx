@@ -9,6 +9,7 @@ import {
   getSpeakingState,
   saveSpeakingState,
 } from '../utils/storage.js';
+import { enrichVocabEntry } from '../utils/vocabEnrichment.js';
 import WordRangeCollector from './WordRangeCollector.jsx';
 
 const regularSceneConfigs = [
@@ -996,7 +997,8 @@ ${transcript}`,
   };
 
   const collectPhrase = (entry) => {
-    addVocabEntry(entry);
+    const { entry: savedEntry } = addVocabEntry({ ...entry, isEnrichmentPending: true });
+    void enrichVocabEntry(savedEntry);
     setSavedMessage('收进词库啦。');
   };
 

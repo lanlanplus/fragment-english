@@ -490,6 +490,14 @@ input:focus {
   font-weight: 800;
 }
 
+.fragment-analysis {
+  min-height: 48px;
+}
+
+.translation.loading {
+  color: var(--color-text-sub);
+}
+
 .better {
   margin-bottom: 0;
   padding-top: 8px;
@@ -637,6 +645,17 @@ input:focus {
   background: var(--color-primary-light);
   color: var(--color-primary);
   font-weight: 800;
+}
+
+.card-meta .source-label {
+  max-width: 62%;
+  overflow: hidden;
+  padding: 0;
+  background: transparent;
+  color: var(--color-text-sub);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .word-range-collector {
