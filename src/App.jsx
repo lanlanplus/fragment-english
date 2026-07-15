@@ -45,6 +45,11 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
+    document.documentElement.classList.toggle('stars-page-active', activeTab === 'stars');
+    return () => document.documentElement.classList.remove('stars-page-active');
+  }, [activeTab]);
+
+  useEffect(() => {
     let isMounted = true;
 
     async function syncSession(nextSession) {
@@ -121,7 +126,7 @@ export default function App() {
   };
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell ${activeTab === 'stars' ? 'stars-active-shell' : ''}`}>
       <section className={`app-frame ${activeTab === 'stars' ? 'stars-active' : ''}`}>
         <header className="app-header">
           <div>

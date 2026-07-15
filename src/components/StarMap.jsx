@@ -27,7 +27,7 @@ function sphereRadius(count, viewport) {
   return Math.min(availableRadius, Math.max(132, densityRadius));
 }
 
-function makeSphere(items, radius) {
+function makeSphere(items) {
   const offset = Math.random() * Math.PI * 2;
   const count = items.length;
   return items.map((item, index) => {
@@ -36,9 +36,9 @@ function makeSphere(items, radius) {
     const theta = GOLDEN_ANGLE * index + offset;
     return {
       ...item,
-      x: Math.cos(theta) * ringRadius * radius,
-      y: yUnit * radius,
-      z: Math.sin(theta) * ringRadius * radius,
+      unitX: Math.cos(theta) * ringRadius,
+      unitY: yUnit,
+      unitZ: Math.sin(theta) * ringRadius,
       twinkle: 0.94 + Math.random() * 0.12,
     };
   });
@@ -85,9 +85,15 @@ export default function StarMap() {
   const { speak, speakingId } = useEnglishSpeech();
 
   const radius = sphereRadius(fragments.length, viewport);
-  const sphereLayout = useMemo(() => makeSphere(fragments, radius), [fragments.length, radius, sphereSeed]);
+  const sphereLayout = useMemo(() => makeSphere(fragments), [fragments.length, sphereSeed]);
   const currentById = new Map(fragments.map((fragment) => [fragment.id, fragment]));
-  const stars = sphereLayout.map((star) => ({ ...star, ...currentById.get(star.id), x: star.x, y: star.y, z: star.z }));
+  const stars = sphereLayout.map((star) => ({
+    ...star,
+    ...currentById.get(star.id),
+    x: star.unitX * radius,
+    y: star.unitY * radius,
+    z: star.unitZ * radius,
+  }));
   const selected = stars.find((star) => star.id === selectedId);
   const overdueCount = fragments.filter((fragment) => reviewTier(fragment.lastReviewedAt) === 'bright').length;
 
