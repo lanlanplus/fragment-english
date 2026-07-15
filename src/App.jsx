@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import AuthPanel from './components/AuthPanel.jsx';
 import FragmentLibrary from './components/FragmentLibrary.jsx';
-import GachaMachine from './components/GachaMachine.jsx';
+import StarMap from './components/StarMap.jsx';
 import SpeakingPractice from './components/SpeakingPractice.jsx';
 import DiaryModule from './components/DiaryModule.jsx';
 import { supabase } from './utils/supabase.js';
@@ -9,7 +9,7 @@ import { APP_STATE_SYNCED_EVENT, getSettings, saveSettings, syncUserState } from
 
 const tabs = [
   { id: 'fragments', label: '碎片', icon: '✦' },
-  { id: 'gacha', label: '扭蛋', icon: '◌' },
+  { id: 'stars', label: '拾星', icon: '✦' },
   { id: 'speak', label: '开口', icon: '♡' },
   { id: 'diary', label: '日记', icon: '✏️' },
 ];
@@ -102,7 +102,7 @@ export default function App() {
   }, [isThemePickerOpen]);
 
   const renderActiveTab = () => {
-    if (activeTab === 'gacha') return <GachaMachine />;
+    if (activeTab === 'stars') return <StarMap />;
     if (activeTab === 'speak') return <SpeakingPractice />;
     if (activeTab === 'diary') return <DiaryModule />;
     return <FragmentLibrary />;
@@ -122,7 +122,7 @@ export default function App() {
 
   return (
     <main className="app-shell">
-      <section className="app-frame">
+      <section className={`app-frame ${activeTab === 'stars' ? 'stars-active' : ''}`}>
         <header className="app-header">
           <div>
             <p className="eyebrow">no class, just play</p>

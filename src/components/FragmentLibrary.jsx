@@ -95,6 +95,8 @@ export default function FragmentLibrary() {
         ...translated,
         createdAt: now,
         updatedAt: now,
+        reviewCount: 0,
+        lastReviewedAt: null,
       };
 
       const nextFragments = addFragment(fragment);

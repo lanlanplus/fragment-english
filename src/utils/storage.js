@@ -1,7 +1,6 @@
 import { supabase } from './supabase.js';
 
 export const FRAGMENTS_KEY = 'fragment-english-library';
-export const GACHA_KEY_PREFIX = 'fragment-english-gacha-';
 export const DIARY_KEY_PREFIX = 'diary:';
 export const SETTINGS_KEY = 'fragment-english-settings';
 export const SPEAKING_KEY = 'fragment-english-speaking';
@@ -10,7 +9,7 @@ export const APP_STATE_SYNCED_EVENT = 'fragment-english-state-synced';
 export const FRAGMENTS_LOCAL_UPDATED_EVENT = 'fragment-english-fragments-local-updated';
 
 const STATE_TABLE = 'user_states';
-const CLOUD_KEYS = ['fragments', 'gacha', 'diaries', 'settings', 'speaking', 'speaking_history'];
+const CLOUD_KEYS = ['fragments', 'diaries', 'settings', 'speaking', 'speaking_history'];
 let fragmentsCloudSaveQueue = Promise.resolve();
 
 function safeParse(value, fallback = null) {
@@ -65,19 +64,6 @@ function saveCloudSlice(key, value) {
   return fragmentsCloudSaveQueue;
 }
 
-function getLocalGachaMap() {
-  return Object.keys(localStorage)
-    .filter((key) => key.startsWith(GACHA_KEY_PREFIX))
-    .reduce((gacha, key) => {
-      const date = key.replace(GACHA_KEY_PREFIX, '');
-      const stored = safeParse(localStorage.getItem(key));
-      if (!stored) return gacha;
-
-      gacha[date] = Array.isArray(stored) ? { cards: stored, flippedIds: [] } : stored;
-      return gacha;
-    }, {});
-}
-
 function getDiaryKeys() {
   return Object.keys(localStorage).filter((key) => key.startsWith(DIARY_KEY_PREFIX));
 }
@@ -102,7 +88,6 @@ function sortSpeakingHistory(items) {
 function getLocalAppState() {
   return {
     fragments: getFragments(),
-    gacha: getLocalGachaMap(),
     diaries: getDiaries(),
     settings: getSettings(),
     speaking: getSpeakingState(),
@@ -113,7 +98,6 @@ function getLocalAppState() {
 function mergeAppState(cloudState, localState) {
   return {
     fragments: sortByNewest(mergeById(localState.fragments, cloudState.fragments)),
-    gacha: { ...cloudState.gacha, ...localState.gacha },
     diaries: sortByNewest(mergeById(localState.diaries, cloudState.diaries)),
     settings: { ...cloudState.settings, ...localState.settings },
     speaking: localState.speaking?.scene || localState.speaking?.messages?.length ? localState.speaking : cloudState.speaking,
@@ -127,17 +111,21 @@ async function fetchCloudState(userId) {
 
   return CLOUD_KEYS.reduce((state, key) => {
     const row = data?.find((item) => item.key === key);
-    state[key] = row?.value ?? (key === 'gacha' || key === 'settings' || key === 'speaking' ? {} : []);
+    state[key] = row?.value ?? (key === 'settings' || key === 'speaking' ? {} : []);
     return state;
   }, {});
 }
 
 async function saveCloudState(state) {
-  await Promise.all(CLOUD_KEYS.map((key) => saveCloudSlice(key, state[key] ?? (key === 'gacha' || key === 'settings' || key === 'speaking' ? {} : []))));
+  await Promise.all(CLOUD_KEYS.map((key) => saveCloudSlice(key, state[key] ?? (key === 'settings' || key === 'speaking' ? {} : []))));
 }
 
 export function getFragments() {
-  return safeParse(localStorage.getItem(FRAGMENTS_KEY), []);
+  return safeParse(localStorage.getItem(FRAGMENTS_KEY), []).map((fragment) => ({
+    ...fragment,
+    reviewCount: Number.isFinite(fragment.reviewCount) ? fragment.reviewCount : 0,
+    lastReviewedAt: fragment.lastReviewedAt || null,
+  }));
 }
 
 export function saveFragments(fragments) {
@@ -163,6 +151,8 @@ export function addVocabEntry({ text, sourceLabel, isEnrichmentPending = false }
     sourceLabel,
     createdAt: now,
     updatedAt: now,
+    reviewCount: 0,
+    lastReviewedAt: null,
   };
 
   const fragments = addFragment(entry);
@@ -180,24 +170,6 @@ export function deleteFragment(id) {
   const nextFragments = getFragments().filter((fragment) => fragment.id !== id);
   saveFragments(nextFragments);
   return nextFragments;
-}
-
-export function getTodayKey() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-export function getDailyGacha() {
-  const key = `${GACHA_KEY_PREFIX}${getTodayKey()}`;
-  const stored = safeParse(localStorage.getItem(key));
-  if (!stored) return null;
-  return Array.isArray(stored) ? { cards: stored, flippedIds: [] } : stored;
-}
-
-export function saveDailyGacha(cards, flippedIds = []) {
-  const key = `${GACHA_KEY_PREFIX}${getTodayKey()}`;
-  const gacha = { cards, flippedIds };
-  saveLocalJson(key, gacha);
-  saveCloudSlice('gacha', getLocalGachaMap());
 }
 
 export function getDiaries() {
@@ -286,10 +258,6 @@ export async function syncUserState(user) {
 
 export function applyAppState(state) {
   saveLocalJson(FRAGMENTS_KEY, state.fragments || []);
-
-  Object.entries(state.gacha || {}).forEach(([date, value]) => {
-    saveLocalJson(`${GACHA_KEY_PREFIX}${date}`, Array.isArray(value) ? { cards: value, flippedIds: [] } : value);
-  });
 
   (state.diaries || []).forEach((entry) => {
     saveLocalJson(`${DIARY_KEY_PREFIX}${entry.id}`, entry);
